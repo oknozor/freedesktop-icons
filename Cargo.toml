@@ -7,6 +7,14 @@ edition = "2021"
 
 [dependencies]
 dirs = "4.0.0"
-rust-ini = "0.17.0"
+serde_ini = "0.2.0"
+serde = { version = "^1", features = ["derive"] }
 speculoos = "0.7.0"
 thiserror = "1.0.30"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "lookup"
+harness = false
