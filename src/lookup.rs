@@ -1,50 +1,54 @@
 use crate::theme::IconTheme;
 use std::path::PathBuf;
 
-pub fn lookup(icon: &str) -> Lookup<'_> {
+pub fn lookup(icon: &str) -> Lookup {
     Lookup {
-        theme: "hicolor",
+        theme: "hicolor".to_string(),
         size: 24,
         scale: 1,
-        icon,
+        icon: icon.to_string(),
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Lookup<'a> {
-    theme: &'a str,
+#[derive(Debug, Clone)]
+pub struct Lookup {
+    theme: String,
     size: u16,
     scale: u16,
-    icon: &'a str,
+    icon: String,
 }
 
-impl<'a> Lookup<'a> {
-    pub fn theme(&mut self, theme: &'a str) -> Self {
-        self.theme = theme;
-        *self
+impl Lookup {
+    pub fn theme(&self, theme: &str) -> Self {
+        let mut lookup = self.clone();
+        lookup.theme = theme.to_string();
+        lookup
     }
 
-    pub fn size(&mut self, size: u16) -> Self {
+    pub fn size(&self, size: u16) ->  Self  {
         if size == 0 {
             panic!("Icon size cannot be zero")
         }
-        self.size = size;
-        *self
+        let mut lookup = self.clone();
+        lookup.size = size;
+        lookup
     }
 
-    pub fn scale(&mut self, scale: u16) -> Self {
+    pub fn scale(&self, scale: u16) -> Self {
         if scale == 0 {
             panic!("Icon scale cannot be zero")
         }
-        self.scale = scale;
-        *self
+        let mut lookup = self.clone();
+        lookup.scale = scale;
+        lookup
     }
 
-    pub fn execute(&mut self) -> Result<Option<PathBuf>, crate::Error> {
+    pub fn execute(&self) -> Result<Option<PathBuf>, crate::Error> {
         let lookup_paths = lookup_paths();
+
         let theme_paths: Vec<PathBuf> = lookup_paths
             .iter()
-            .map(|path| path.join(self.theme))
+            .map(|path| path.join(&self.theme))
             .filter(|path| path.exists())
             .collect();
 
@@ -83,7 +87,8 @@ impl<'a> Lookup<'a> {
 
             // Recursively lookup in parent themes
             if let Some(parent) = theme.data.inherits {
-                if let Some(icon) = self.execute()? {
+                let lookup = self.theme(&parent);
+                if let Some(icon) = lookup.execute()? {
                     return Ok(Some(icon));
                 }
             }
