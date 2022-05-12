@@ -1,123 +1,172 @@
 use crate::theme::error::ThemeError;
-use dirs::{data_dir, home_dir};
+use crate::theme::paths::{ThemePath, FALLBACK_PATHS};
 use ini::Ini;
-use std::borrow::Cow;
+use once_cell::sync::Lazy;
+use paths::BASE_PATHS;
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
-use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+pub mod directories;
 pub mod error;
+pub mod parse;
+pub mod paths;
 
-type Result<T> = std::result::Result<T, error::ThemeError>;
+type Result<T> = std::result::Result<T, ThemeError>;
 
-const HICOLOR: &str = "/usr/share/pixmaps";
+pub static THEMES: Lazy<BTreeMap<String, Theme>> =
+    Lazy::new(|| get_all_themes().expect("Failed to get theme paths"));
 
-#[derive(Debug)]
-struct ThemePath(PathBuf);
+pub static FALL_BACK_THEMES: Lazy<Vec<Theme>> =
+    Lazy::new(|| fallback_themes().expect("Failed to get theme paths"));
 
-struct ThemeIndex(Ini);
+pub struct Theme {
+    path: ThemePath,
+    index: Ini,
+}
 
-impl Debug for ThemeIndex {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut content = vec![];
-        self.0.write_to(&mut content).expect("Write error");
-        let content = String::from_utf8_lossy(&content);
-        writeln!(f, "ThemeIndex({content:?})")
+impl Theme {
+    pub fn try_get_icon(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
+        self.try_get_icon_exact_size(name, size, scale)
+            .or(self.try_get_icon_closest_size(name, size, scale))
+    }
+
+    fn try_get_icon_exact_size(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
+        self.match_size(size, scale)
+            .iter()
+            .find_map(|path| try_build_icon_path(name, path))
+    }
+
+    fn match_size(&self, size: u16, scale: u16) -> Vec<PathBuf> {
+        let dirs = self.get_all_directories();
+
+        dirs.iter()
+            .filter(|directory| directory.match_size(size, scale))
+            .map(|dir| dir.name)
+            .map(|dir| self.path().join(dir))
+            .collect()
+    }
+
+    fn try_get_icon_closest_size(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
+        self.closest_match_size(size, scale)
+            .iter()
+            .find_map(|path| try_build_icon_path(name, path))
+    }
+
+    fn closest_match_size(&self, size: u16, scale: u16) -> Vec<PathBuf> {
+        let dirs = self.get_all_directories();
+
+        dirs.iter()
+            .filter(|directory| directory.directory_size_distance(size, scale) < i16::MAX)
+            .map(|dir| dir.name)
+            .map(|dir| self.path().join(dir))
+            .collect()
+    }
+
+    fn path(&self) -> &PathBuf {
+        &self.path.0
     }
 }
 
-impl ThemePath {
-    fn name(&self) -> Cow<'_, str> {
-        // Unwrapping is safe here, we just got the path from [`list_icon_themes`]
-        self.0.file_name().unwrap().to_string_lossy()
+pub(super) fn try_build_icon_path<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
+    let path = path.as_ref();
+    let png = path.join(format!("{name}.png"));
+    if png.exists() {
+        return Some(png);
     }
 
-    fn index(&self) -> Result<ThemeIndex> {
-        let index = self.0.join("index.theme");
-
-        if !index.exists() {
-            return Err(ThemeError::ThemeIndexNotFound(index));
-        }
-
-        let index = Ini::load_from_file(index)?;
-
-        Ok(ThemeIndex(index))
+    let svg = path.join(format!("{name}.svg"));
+    if svg.exists() {
+        return Some(svg);
     }
-}
-/// Look in $HOME/.icons (for backwards compatibility), in $XDG_DATA_DIRS/icons and in /usr/share/pixmaps (in that order).
-/// Paths that are not found are filtered out.
-fn icon_theme_base_paths() -> Vec<PathBuf> {
-    let home_icon_dir = home_dir().expect("No $HOME directory").join(".icons");
-    let usr_data_dir = data_dir().expect("No $XDG_DATA_DIR").join("icons");
-    let xdg_data_dirs_local = PathBuf::from("/usr/local/share/").join("icons");
-    let xdg_data_dirs = PathBuf::from("/usr/share/").join("icons");
+    let xmp = path.join(format!("{name}.xmp"));
 
-    [
-        home_icon_dir,
-        usr_data_dir,
-        xdg_data_dirs_local,
-        xdg_data_dirs,
-    ]
-    .into_iter()
-    .filter(|p| p.exists())
-    .collect()
+    if xmp.exists() {
+        return Some(xmp);
+    }
+
+    None
 }
 
 // Iter through the base paths and get all theme directories
-fn list_icon_themes() -> io::Result<Vec<ThemePath>> {
-    let mut icon_theme_path = vec![];
-    for theme_base_dir in icon_theme_base_paths().iter() {
+fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
+    let mut icon_themes = BTreeMap::new();
+    for theme_base_dir in BASE_PATHS.iter() {
         for entry in theme_base_dir.read_dir()? {
             let entry = entry?;
-            let has_index = entry.path().join("index.theme").exists();
-            if entry.path().is_dir() && has_index {
-                icon_theme_path.push(ThemePath(entry.path()));
+            if let Some(theme) = Theme::from_path(entry.path()) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                icon_themes.insert(name, theme);
             }
         }
     }
-    Ok(icon_theme_path)
+    Ok(icon_themes)
+}
+
+fn fallback_themes() -> Result<Vec<Theme>> {
+    let mut icon_themes = vec![];
+    for theme_base_dir in FALLBACK_PATHS.iter() {
+        for entry in theme_base_dir.read_dir()? {
+            let entry = entry?;
+            if let Some(theme) = Theme::from_path(entry.path()) {
+                icon_themes.push(theme);
+            }
+        }
+    }
+
+    Ok(icon_themes)
+}
+
+pub fn theme_names() -> Vec<&'static str> {
+    THEMES
+        .values()
+        .map(|path| &path.index)
+        .filter_map(|index| {
+            index
+                .section(Some("Icon Theme"))
+                .and_then(|section| section.get("Name").map(|s| s))
+        })
+        .collect()
+}
+
+impl Theme {
+    fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+        let path = path.as_ref();
+
+        let has_index = path.join("index.theme").exists();
+
+        if !has_index || !path.is_dir() {
+            return None;
+        }
+
+        let path = ThemePath(path.into());
+
+        match path.index() {
+            Ok(index) => Some(Theme { path, index }),
+            Err(_) => None,
+        }
+    }
+}
+
+impl Debug for Theme {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut content = vec![];
+        self.index.write_to(&mut content).expect("Write error");
+        let content = String::from_utf8_lossy(&content);
+        writeln!(f, "ThemeIndex{{path: {:?}, index: {content:?}}}", self.path)
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::theme::{icon_theme_base_paths, list_icon_themes};
-    use anyhow::Result;
-    use speculoos::prelude::*;
+    use crate::THEMES;
 
     #[test]
-    fn should_get_theme_paths_ordered() {
-        let base_paths = icon_theme_base_paths();
-
-        assert_that!(base_paths).is_not_empty()
-    }
-
-    #[test]
-    fn should_get_icon_theme_paths_ordered() -> Result<()> {
-        let themes = list_icon_themes()?;
-
-        assert_that!(themes).is_not_empty();
-        Ok(())
-    }
-
-    #[test]
-    fn should_read_theme_index() -> Result<()> {
-        let paths = list_icon_themes()?;
-
-        for theme_path in paths {
-            assert_that!(theme_path.index()).is_ok();
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn should_get_theme_name() -> Result<()> {
-        let paths = list_icon_themes()?;
-
-        for theme_path in paths {
-            assert_that!(theme_path.name().len()).is_greater_than(0);
-        }
-
-        Ok(())
+    fn get_one_icon() {
+        let theme = THEMES.get("Adwaita").unwrap();
+        println!(
+            "{:?}",
+            theme.try_get_icon_exact_size("edit-delete-symbolic", 24, 1)
+        );
     }
 }
