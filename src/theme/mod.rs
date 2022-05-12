@@ -7,10 +7,10 @@ use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
 
-pub mod directories;
+mod directories;
 pub mod error;
-pub mod parse;
-pub mod paths;
+mod parse;
+mod paths;
 
 type Result<T> = std::result::Result<T, ThemeError>;
 
