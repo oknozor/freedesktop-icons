@@ -86,7 +86,7 @@ pub(super) fn try_build_icon_path<P: AsRef<Path>>(name: &str, path: P) -> Option
 }
 
 // Iter through the base paths and get all theme directories
-pub fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
+pub(super) fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
     let mut icon_themes = BTreeMap::new();
     for theme_base_dir in BASE_PATHS.iter() {
         for entry in theme_base_dir.read_dir()? {
