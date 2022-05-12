@@ -5,17 +5,17 @@ use ini::Properties;
 impl Theme {
     pub(super) fn get_all_directories(&self) -> Vec<Directory> {
         self.directories()
-            .unwrap_or_default()
             .iter()
             .filter_map(|name| self.get_directory(name))
             .collect()
     }
 
     // TODO: use me
-    fn scaled_directories(&self) -> Option<Vec<&str>> {
+    fn scaled_directories(&self) -> Vec<&str> {
         self.get_icon_theme_section()
             .and_then(|props| props.get("ScaledDirectories"))
             .map(|dirs| dirs.split(',').collect())
+            .unwrap_or(vec![])
     }
 
     fn get_icon_theme_section(&self) -> Option<&Properties> {
@@ -27,11 +27,12 @@ impl Theme {
             .and_then(|props| props.get("Inherits"))
     }
 
-    fn directories(&self) -> Option<Vec<&str>> {
+    fn directories(&self) -> Vec<&str> {
         self.index
             .section(Some("Icon Theme"))
             .and_then(|props| props.get("Directories"))
             .map(|dirs| dirs.split(',').collect())
+            .unwrap_or(vec![])
     }
 
     fn get_directory<'a>(&'a self, name: &'a str) -> Option<Directory> {
