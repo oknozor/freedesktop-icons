@@ -5,15 +5,7 @@ use ini::Ini;
 use once_cell::sync::Lazy;
 use std::path::PathBuf;
 
-pub(crate) static BASE_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(|| icon_theme_base_paths());
-pub(crate) static FALLBACK_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(|| {
-    vec![
-        data_dir()
-            .expect("Failed to get DATA_DIR")
-            .join("icons/hicolor"),
-        PathBuf::from("usr/share/icons/hicolor"),
-    ]
-});
+pub(crate) static BASE_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(icon_theme_base_paths);
 
 /// Look in $HOME/.icons (for backwards compatibility), in $XDG_DATA_DIRS/icons and in /usr/share/pixmaps (in that order).
 /// Paths that are not found are filtered out.
@@ -55,6 +47,12 @@ mod test {
     use crate::theme::{get_all_themes, Theme};
     use anyhow::Result;
     use speculoos::prelude::*;
+
+    #[test]
+    fn should_get_all_themes() {
+        let themes = get_all_themes().unwrap();
+        assert_that!(themes.get("hicolor")).is_some();
+    }
 
     #[test]
     fn should_get_theme_paths_ordered() {

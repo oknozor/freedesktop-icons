@@ -4,18 +4,14 @@ use ini::Properties;
 
 impl Theme {
     pub(super) fn get_all_directories(&self) -> Vec<Directory> {
-        let dir_names = self.directories().unwrap_or(vec![]);
-        let mut dirs = vec![];
-        for dir in dir_names {
-            let dir = self.get_directory(dir);
-            if let Some(dir) = dir {
-                dirs.push(dir);
-            }
-        }
-
-        dirs
+        self.directories()
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|name| self.get_directory(name))
+            .collect()
     }
 
+    // TODO: use me
     fn scaled_directories(&self) -> Option<Vec<&str>> {
         self.get_icon_theme_section()
             .and_then(|props| props.get("ScaledDirectories"))

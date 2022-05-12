@@ -1,5 +1,5 @@
 use crate::theme::error::ThemeError;
-use crate::theme::paths::{ThemePath, FALLBACK_PATHS};
+use crate::theme::paths::ThemePath;
 use ini::Ini;
 use once_cell::sync::Lazy;
 use paths::BASE_PATHS;
@@ -17,9 +17,6 @@ type Result<T> = std::result::Result<T, ThemeError>;
 pub static THEMES: Lazy<BTreeMap<String, Theme>> =
     Lazy::new(|| get_all_themes().expect("Failed to get theme paths"));
 
-pub static FALL_BACK_THEMES: Lazy<Vec<Theme>> =
-    Lazy::new(|| fallback_themes().expect("Failed to get theme paths"));
-
 pub struct Theme {
     path: ThemePath,
     index: Ini,
@@ -28,7 +25,7 @@ pub struct Theme {
 impl Theme {
     pub fn try_get_icon(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
         self.try_get_icon_exact_size(name, size, scale)
-            .or(self.try_get_icon_closest_size(name, size, scale))
+            .or_else(|| self.try_get_icon_closest_size(name, size, scale))
     }
 
     fn try_get_icon_exact_size(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
@@ -89,7 +86,7 @@ pub(super) fn try_build_icon_path<P: AsRef<Path>>(name: &str, path: P) -> Option
 }
 
 // Iter through the base paths and get all theme directories
-fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
+pub fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
     let mut icon_themes = BTreeMap::new();
     for theme_base_dir in BASE_PATHS.iter() {
         for entry in theme_base_dir.read_dir()? {
@@ -103,20 +100,6 @@ fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
     Ok(icon_themes)
 }
 
-fn fallback_themes() -> Result<Vec<Theme>> {
-    let mut icon_themes = vec![];
-    for theme_base_dir in FALLBACK_PATHS.iter() {
-        for entry in theme_base_dir.read_dir()? {
-            let entry = entry?;
-            if let Some(theme) = Theme::from_path(entry.path()) {
-                icon_themes.push(theme);
-            }
-        }
-    }
-
-    Ok(icon_themes)
-}
-
 pub fn theme_names() -> Vec<&'static str> {
     THEMES
         .values()
@@ -124,7 +107,7 @@ pub fn theme_names() -> Vec<&'static str> {
         .filter_map(|index| {
             index
                 .section(Some("Icon Theme"))
-                .and_then(|section| section.get("Name").map(|s| s))
+                .and_then(|section| section.get("Name"))
         })
         .collect()
 }
