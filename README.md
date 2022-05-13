@@ -2,7 +2,7 @@
 
  This crate provides a [freedesktop icon](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#implementation_notes) lookup implementation.
 
- It exposes a single `lookup` function to find icon based on their, `name`, `theme`, `size` and `scale`.
+ It exposes a single `lookup` function to find icons based on their `name`, `theme`, `size` and `scale`.
 
  ## Example
 
@@ -19,7 +19,7 @@
 
  **Complex lookup:**
 
- If you have specific requirement for your lookup you can use the provided builder functions:
+ If you have specific requirements for your lookup you can use the provided builder functions:
 
  ```rust
  use freedesktop_icons::lookup;

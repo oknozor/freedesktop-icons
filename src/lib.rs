@@ -2,7 +2,7 @@
 //!
 //! This crate provides a [freedesktop icon](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#implementation_notes) lookup implementation.
 //!
-//! It exposes a single lookup function to find icon based on their, `name`, `theme`, `size` and `scale`.
+//! It exposes a single lookup function to find icons based on their `name`, `theme`, `size` and `scale`.
 //!
 //! ## Example
 //!
@@ -21,7 +21,7 @@
 //!
 //! **Complex lookup:**
 //!
-//! If you have specific requirement for your lookup you can use the provided builder functions:
+//! If you have specific requirements for your lookup you can use the provided builder functions:
 //!
 //! ```rust
 //! # fn main() {
@@ -155,7 +155,7 @@ impl<'a> LookupBuilder<'a> {
     }
 
     /// Store the result of the lookup in cache, subsequent
-    /// lookup will first try to retrieve get the cached icon.
+    /// lookup will first try to get the cached icon.
     /// This can drastically increase lookup performances for application
     /// that repeat the same lookups, an application launcher for instance.
     ///
@@ -176,7 +176,7 @@ impl<'a> LookupBuilder<'a> {
 
     /// Execute the current lookup
     /// if no icon is found in the current theme fallback to
-    /// `/usr/shar/hicolor` theme and then to `/usr/share/pixmaps`.
+    /// `/usr/share/icons/hicolor` theme and then to `/usr/share/pixmaps`.
     pub fn find(self) -> Option<PathBuf> {
         // Lookup for an icon in the given theme and fallback to 'hicolor' default theme
         self.lookup_in_theme()
