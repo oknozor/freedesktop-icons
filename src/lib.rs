@@ -50,7 +50,7 @@
 //!     .with_cache()
 //!     .find();
 //! # }
-use crate::cache::CACHE;
+use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
 use std::path::PathBuf;
 
@@ -89,7 +89,7 @@ pub struct LookupBuilder<'a> {
     cache: bool,
     scale: u16,
     size: u16,
-    theme: Option<&'a str>,
+    theme: &'a str,
 }
 
 /// Build an icon lookup for the given icon name.
@@ -149,7 +149,7 @@ impl<'a> LookupBuilder<'a> {
     ///     .find();
     /// # }
     pub fn with_theme<'b: 'a>(mut self, theme: &'b str) -> Self {
-        self.theme = Some(theme);
+        self.theme = theme;
         self
     }
 
@@ -178,18 +178,7 @@ impl<'a> LookupBuilder<'a> {
     /// `/usr/shar/hicolor` theme and then to `/usr/share/pixmaps`.
     pub fn find(self) -> Option<PathBuf> {
         // Lookup for an icon in the given theme and fallback to 'hicolor' default theme
-        let icon = self
-            .theme
-            .and_then(|theme| self.lookup_in_theme(theme))
-            .or_else(|| self.lookup_in_theme("hicolor"));
-
-        // Return the icon if found
-        if icon.is_some() {
-            return icon;
-        };
-
-        // Last chance
-        try_build_icon_path(self.name, "/usr/share/pixmaps")
+        self.lookup_in_theme()
     }
 
     fn new<'b: 'a>(name: &'b str) -> Self {
@@ -198,22 +187,29 @@ impl<'a> LookupBuilder<'a> {
             cache: false,
             scale: 1,
             size: 24,
-            theme: None,
+            theme: "hicolor",
         }
     }
 
     // Recursively lookup for icon in the given theme and its parents
-    fn lookup_in_theme(&self, theme: &str) -> Option<PathBuf> {
+    fn lookup_in_theme(&self) -> Option<PathBuf> {
         // If cache is activated, attempt to get the icon there first
+        // If the icon was previously search but not found, we return
+        // `None` early, otherwise, attempt to perform a lookup
         if self.cache {
-            let cached = self.cache_lookup(theme);
-            if cached.is_some() {
-                return cached;
-            }
+            match self.cache_lookup(self.theme) {
+                CacheEntry::Found(icon) => {
+                    return Some(icon);
+                }
+                CacheEntry::NotFound => {
+                    return None;
+                }
+                CacheEntry::Unknown => {}
+            };
         }
 
         // Then lookup in the given theme
-        THEMES.get(theme).and_then(|icon_theme| {
+        THEMES.get(self.theme).and_then(|icon_theme| {
             let icon = icon_theme
                 .try_get_icon(self.name, self.size, self.scale)
                 .or_else(|| {
@@ -223,10 +219,18 @@ impl<'a> LookupBuilder<'a> {
                             parent.try_get_icon(self.name, self.size, self.scale)
                         })
                     })
-                });
+                })
+                .or_else(|| {
+                    THEMES
+                        .get("hicolor")
+                        // Fallback to 'hicolor'
+                        .and_then(|hicolor| hicolor.try_get_icon(self.name, self.size, self.scale))
+                })
+                // Last chance, try to find the icon in "/usr/share/pixmaps"
+                .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps"));
 
             if self.cache {
-                self.store(theme, icon)
+                self.store(self.theme, icon)
             } else {
                 icon
             }
@@ -234,22 +238,22 @@ impl<'a> LookupBuilder<'a> {
     }
 
     #[inline]
-    fn cache_lookup(&self, theme: &str) -> Option<PathBuf> {
+    fn cache_lookup(&self, theme: &str) -> CacheEntry {
         CACHE.get(theme, self.size, self.scale, self.name)
     }
 
     #[inline]
     fn store(&self, theme: &str, icon: Option<PathBuf>) -> Option<PathBuf> {
-        icon.map(|icon| {
-            CACHE.insert(theme, self.size, self.scale, self.name, &icon);
-            icon
-        })
+        CACHE.insert(theme, self.size, self.scale, self.name, &icon);
+        icon
     }
 }
 
+// WARNING: these test are highly dependent on your installed icon-themes.
+// If you want to run them, make sure you have 'Papirus' and 'Arc' icon-themes installed.
 #[cfg(test)]
 mod test {
-    use crate::lookup;
+    use crate::{lookup, CacheEntry, CACHE};
     use speculoos::prelude::*;
     use std::path::PathBuf;
 
@@ -266,7 +270,19 @@ mod test {
     }
 
     #[test]
-    fn should_fallback() {
+    fn theme_lookup() {
+        let firefox = lookup("firefox").with_theme("Papirus").find();
+
+        asserting!("Lookup with no parameters should return an existing icon")
+            .that(&firefox)
+            .is_some()
+            .is_equal_to(PathBuf::from(
+                "/usr/share/icons/Papirus/24x24/apps/firefox.svg",
+            ));
+    }
+
+    #[test]
+    fn should_fallback_to_parent_theme() {
         let icon = lookup("video-single-display-symbolic")
             .with_theme("Arc")
             .find();
@@ -277,6 +293,20 @@ mod test {
             .is_equal_to(PathBuf::from(
                 "/usr/share/icons/Adwaita/scalable/devices/video-single-display-symbolic.svg",
             ));
+    }
+
+    #[test]
+    fn should_fallback_to_pixmaps_utlimately() {
+        let archlinux_logo = lookup("archlinux-logo")
+            .with_size(16)
+            .with_scale(1)
+            .with_theme("Papirus")
+            .find();
+
+        asserting!("When lookup fail in theme, icon should be found in '/usr/share/pixmaps'")
+            .that(&archlinux_logo)
+            .is_some()
+            .is_equal_to(PathBuf::from("/usr/share/pixmaps/archlinux-logo.png"));
     }
 
     #[test]
@@ -300,16 +330,15 @@ mod test {
     }
 
     #[test]
-    fn should_fallback_to_pixmaps_utlimately() {
-        let archlinux_logo = lookup("archlinux-logo")
-            .with_size(16)
-            .with_scale(1)
-            .with_theme("Papirus")
-            .find();
+    fn should_not_attempt_to_lookup_a_not_found_cached_icon() {
+        let not_found = lookup("not-found").with_cache().find();
 
-        asserting!("When lookup fail in theme, icon should be found in '/usr/share/pixmaps'")
-            .that(&archlinux_logo)
-            .is_some()
-            .is_equal_to(PathBuf::from("/usr/share/pixmaps/archlinux-logo.png"));
+        assert_that!(not_found).is_none();
+
+        let expected_cache_result = CACHE.get("hicolor", 24, 1, "not-found");
+
+        asserting!("When lookup fails a first time, subsequent attempts should fail from cache")
+            .that(&expected_cache_result)
+            .is_equal_to(CacheEntry::NotFound);
     }
 }

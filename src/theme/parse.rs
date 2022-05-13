@@ -28,7 +28,13 @@ impl Theme {
     pub fn inherits(&self) -> Vec<&str> {
         self.get_icon_theme_section()
             .and_then(|props| props.get("Inherits"))
-            .map(|parents| parents.split(',').collect())
+            .map(|parents| {
+                parents
+                    .split(',')
+                    // Filtering out 'hicolor' since we are going to fallback there anyway
+                    .filter(|parent| parent != &"hicolor")
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -84,13 +90,9 @@ mod test {
     fn should_get_theme_parents() {
         let theme = THEMES.get("Arc").unwrap();
         let parents = theme.inherits();
-        assert_that!(parents).is_equal_to(vec![
-            "Moka",
-            "Faba",
-            "elementary",
-            "Adwaita",
-            "gnome",
-            "hicolor",
-        ]);
+
+        assert_that!(parents).does_not_contain("hicolor");
+
+        assert_that!(parents).is_equal_to(vec!["Moka", "Faba", "elementary", "Adwaita", "gnome"]);
     }
 }

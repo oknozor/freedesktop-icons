@@ -1,9 +1,13 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+};
 use freedesktop_icons::lookup;
 use gtk4::{IconLookupFlags, IconTheme, TextDirection};
 
 pub fn bench_lookups(c: &mut Criterion) {
     let mut group = c.benchmark_group("ComparisonsLookups");
+    let plot_config = PlotConfiguration::default().summary_scale(AxisScale::Logarithmic);
+    group.plot_config(plot_config);
 
     let args = [
         "user-home", // (Best case) An icon that can be found in the current theme
@@ -49,5 +53,5 @@ pub fn bench_lookups(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, simple_bench, bench_lookups);
+criterion_group!(benches, bench_lookups);
 criterion_main!(benches);
