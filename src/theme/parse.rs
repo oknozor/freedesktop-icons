@@ -19,7 +19,7 @@ impl Theme {
         self.get_icon_theme_section()
             .and_then(|props| props.get("ScaledDirectories"))
             .map(|dirs| dirs.split(',').collect())
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     fn get_icon_theme_section(&self) -> Option<&Properties> {
@@ -30,7 +30,7 @@ impl Theme {
         self.get_icon_theme_section()
             .and_then(|props| props.get("Inherits"))
             .map(|parents| parents.split(',').collect())
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     fn directories(&self) -> Vec<&str> {
@@ -38,7 +38,7 @@ impl Theme {
             .section(Some("Icon Theme"))
             .and_then(|props| props.get("Directories"))
             .map(|dirs| dirs.split(',').collect())
-            .unwrap_or(vec![])
+            .unwrap_or_default()
     }
 
     fn get_directory<'a>(&'a self, name: &'a str) -> Option<Directory> {
