@@ -1,8 +1,8 @@
-//! # freedesktop-incons
+//! # freedesktop-icons
 //!
 //! This crate provides a [freedesktop icon](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#implementation_notes) lookup implementation.
 //!
-//! It exposes a single [`lookup`] function to find icon based on their, `name`, `theme`, `size` and `scale`.
+//! It exposes a single lookup function to find icon based on their, `name`, `theme`, `size` and `scale`.
 //!
 //! ## Example
 //!
@@ -36,7 +36,7 @@
 //!```
 //! **Cache:**
 //!
-//! If your application is going to repeat the same icon lookups multiple time
+//! If your application is going to repeat the same icon lookups multiple times
 //! you can use the internal cache to improve performance.
 //!
 //! ```rust
@@ -50,6 +50,7 @@
 //!     .with_cache()
 //!     .find();
 //! # }
+//! ```
 use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
 use std::path::PathBuf;
