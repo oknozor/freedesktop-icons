@@ -256,7 +256,27 @@ mod test {
     #[test]
     fn simple_lookup() {
         let firefox = lookup("firefox").find();
-        assert_that!(firefox).is_some();
+
+        asserting!("Lookup with no parameters should return an existing icon")
+            .that(&firefox)
+            .is_some()
+            .is_equal_to(PathBuf::from(
+                "/usr/share/icons/hicolor/22x22/apps/firefox.png",
+            ));
+    }
+
+    #[test]
+    fn should_fallback() {
+        let icon = lookup("video-single-display-symbolic")
+            .with_theme("Arc")
+            .find();
+
+        asserting!("Lookup for an icon in the Arc theme should find the icon in its parent")
+            .that(&icon)
+            .is_some()
+            .is_equal_to(PathBuf::from(
+                "/usr/share/icons/Adwaita/scalable/devices/video-single-display-symbolic.svg",
+            ));
     }
 
     #[test]
@@ -273,18 +293,22 @@ mod test {
             .with_theme("Papirus")
             .find();
 
-        assert_that!(wireshark).is_some().is_equal_to(lin_wireshark)
+        asserting!("Given the same input parameter, lookup should ouput be the same as linincon")
+            .that(&wireshark)
+            .is_some()
+            .is_equal_to(lin_wireshark);
     }
 
     #[test]
-    fn compare_to_linicon_in_pixmap() {
+    fn should_fallback_to_pixmaps_utlimately() {
         let archlinux_logo = lookup("archlinux-logo")
             .with_size(16)
             .with_scale(1)
             .with_theme("Papirus")
             .find();
 
-        assert_that!(archlinux_logo)
+        asserting!("When lookup fail in theme, icon should be found in '/usr/share/pixmaps'")
+            .that(&archlinux_logo)
             .is_some()
             .is_equal_to(PathBuf::from("/usr/share/pixmaps/archlinux-logo.png"));
     }
