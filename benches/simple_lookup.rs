@@ -50,9 +50,9 @@ pub fn bench_lookups(c: &mut Criterion) {
                 )
             });
         });
-
-        group.finish();
     }
+
+    group.finish();
 }
 
 criterion_group!(benches, simple_bench, bench_lookups);

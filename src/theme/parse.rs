@@ -14,7 +14,6 @@ impl Theme {
             )
     }
 
-    // TODO: use me
     fn scaled_directories(&self) -> Vec<&str> {
         self.get_icon_theme_section()
             .and_then(|props| props.get("ScaledDirectories"))
