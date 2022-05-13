@@ -3,11 +3,15 @@ use crate::theme::Theme;
 use ini::Properties;
 
 impl Theme {
-    pub(super) fn get_all_directories(&self) -> Vec<Directory> {
+    pub(super) fn get_all_directories(&self) -> impl Iterator<Item = Directory> {
         self.directories()
-            .iter()
+            .into_iter()
             .filter_map(|name| self.get_directory(name))
-            .collect()
+            .chain(
+                self.scaled_directories()
+                    .into_iter()
+                    .filter_map(|name| self.get_directory(name)),
+            )
     }
 
     // TODO: use me
@@ -22,9 +26,11 @@ impl Theme {
         self.index.section(Some("Icon Theme"))
     }
 
-    pub fn inherits(&self) -> Option<&str> {
+    pub fn inherits(&self) -> Vec<&str> {
         self.get_icon_theme_section()
             .and_then(|props| props.get("Inherits"))
+            .map(|parents| parents.split(',').collect())
+            .unwrap_or(vec![])
     }
 
     fn directories(&self) -> Vec<&str> {
@@ -67,5 +73,25 @@ impl Theme {
                     .unwrap_or(2),
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::THEMES;
+    use speculoos::prelude::*;
+
+    #[test]
+    fn should_get_theme_parents() {
+        let theme = THEMES.get("Arc").unwrap();
+        let parents = theme.inherits();
+        assert_that!(parents).is_equal_to(vec![
+            "Moka",
+            "Faba",
+            "elementary",
+            "Adwaita",
+            "gnome",
+            "hicolor",
+        ]);
     }
 }

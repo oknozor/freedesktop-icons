@@ -18,8 +18,8 @@ pub static THEMES: Lazy<BTreeMap<String, Theme>> =
     Lazy::new(|| get_all_themes().expect("Failed to get theme paths"));
 
 pub struct Theme {
-    path: ThemePath,
-    index: Ini,
+    pub path: ThemePath,
+    pub index: Ini,
 }
 
 impl Theme {
@@ -30,18 +30,15 @@ impl Theme {
 
     fn try_get_icon_exact_size(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
         self.match_size(size, scale)
-            .iter()
             .find_map(|path| try_build_icon_path(name, path))
     }
 
-    fn match_size(&self, size: u16, scale: u16) -> Vec<PathBuf> {
+    fn match_size(&self, size: u16, scale: u16) -> impl Iterator<Item = PathBuf> + '_ {
         let dirs = self.get_all_directories();
 
-        dirs.iter()
-            .filter(|directory| directory.match_size(size, scale))
+        dirs.filter(move |directory| directory.match_size(size, scale))
             .map(|dir| dir.name)
             .map(|dir| self.path().join(dir))
-            .collect()
     }
 
     fn try_get_icon_closest_size(&self, name: &str, size: u16, scale: u16) -> Option<PathBuf> {
@@ -53,8 +50,7 @@ impl Theme {
     fn closest_match_size(&self, size: u16, scale: u16) -> Vec<PathBuf> {
         let dirs = self.get_all_directories();
 
-        dirs.iter()
-            .filter(|directory| directory.directory_size_distance(size, scale) < i16::MAX)
+        dirs.filter(|directory| directory.directory_size_distance(size, scale) < i16::MAX)
             .map(|dir| dir.name)
             .map(|dir| self.path().join(dir))
             .collect()
@@ -98,18 +94,6 @@ pub(super) fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
         }
     }
     Ok(icon_themes)
-}
-
-pub fn theme_names() -> Vec<&'static str> {
-    THEMES
-        .values()
-        .map(|path| &path.index)
-        .filter_map(|index| {
-            index
-                .section(Some("Icon Theme"))
-                .and_then(|section| section.get("Name"))
-        })
-        .collect()
 }
 
 impl Theme {
