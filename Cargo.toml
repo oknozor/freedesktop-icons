@@ -3,7 +3,11 @@ name = "freedesktop-icons"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+description = "A Freedesktop Icons lookup crate"
+repository = "https://github.com/oknozor/freedestkop-icons"
+readme = "README.md"
+keywords = ["icons", "gui", "freedesktop"]
 
 [dependencies]
 dirs = "4.0.0"
