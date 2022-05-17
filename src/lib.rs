@@ -118,8 +118,8 @@ impl<'a> LookupBuilder<'a> {
     ///     .with_size(48)
     ///     .find();
     /// # }
-    pub fn with_size(mut self, scale: u16) -> Self {
-        self.scale = scale;
+    pub fn with_size(mut self, size: u16) -> Self {
+        self.size = size;
         self
     }
 
@@ -134,8 +134,8 @@ impl<'a> LookupBuilder<'a> {
     ///     .with_scale(2)
     ///     .find();
     /// # }
-    pub fn with_scale(mut self, size: u16) -> Self {
-        self.size = size;
+    pub fn with_scale(mut self, scale: u16) -> Self {
+        self.scale = scale;
         self
     }
 

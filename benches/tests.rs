@@ -46,7 +46,6 @@ fn linicon() {
             "/usr/share/icons/Adwaita/24x24/places/user-home.png",
         ));
 
-    // Fixme
     asserting!("Our implementation should return the same result as linicon")
         .that(&user_home)
         .is_some()
@@ -102,5 +101,5 @@ fn linicon() {
     asserting!("But we succeed")
         .that(&archlinux)
         .is_some()
-        .is_equal_to(PathBuf::from("toto"));
+        .is_equal_to(PathBuf::from("/usr/share/pixmaps/archlinux-logo.png"));
 }
