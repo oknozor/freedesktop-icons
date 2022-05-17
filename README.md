@@ -1,4 +1,7 @@
  # freedesktop-icons
+![crates.io-badge](https://img.shields.io/crates/v/freedesktop-icons)
+![docrs-badge](https://img.shields.io/docsrs/freedesktop-icons)
+
 
  This crate provides a [freedesktop icon](https://specifications.freedesktop.org/icon-theme-spec/icon-theme-spec-latest.html#implementation_notes) lookup implementation.
 
