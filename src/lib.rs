@@ -88,6 +88,7 @@ pub fn list_themes() -> Vec<&'static str> {
 pub struct LookupBuilder<'a> {
     name: &'a str,
     cache: bool,
+    force_svg: bool,
     scale: u16,
     size: u16,
     theme: &'a str,
@@ -174,6 +175,24 @@ impl<'a> LookupBuilder<'a> {
         self
     }
 
+    /// By default [`find`] will prioritize Png over Svg icon.
+    /// Use this if you need to prioritize Svg icons. This could be useful
+    /// if you need a modifiable icon, to match a user theme for instance.
+    ///
+    /// ## Example
+    /// ```rust
+    /// # fn main() {
+    /// use freedesktop_icons::lookup;
+    ///
+    /// let icon = lookup("firefox")
+    ///     .force_svg()
+    ///     .find();
+    /// # }
+    pub fn force_svg(mut self) -> Self {
+        self.force_svg = true;
+        self
+    }
+
     /// Execute the current lookup
     /// if no icon is found in the current theme fallback to
     /// `/usr/share/icons/hicolor` theme and then to `/usr/share/pixmaps`.
@@ -186,6 +205,7 @@ impl<'a> LookupBuilder<'a> {
         Self {
             name,
             cache: false,
+            force_svg: false,
             scale: 1,
             size: 24,
             theme: "hicolor",
@@ -212,12 +232,12 @@ impl<'a> LookupBuilder<'a> {
         // Then lookup in the given theme
         THEMES.get(self.theme).and_then(|icon_theme| {
             let icon = icon_theme
-                .try_get_icon(self.name, self.size, self.scale)
+                .try_get_icon(self.name, self.size, self.scale, self.force_svg)
                 .or_else(|| {
                     // Fallback to the parent themes recursively
                     icon_theme.inherits().into_iter().find_map(|parent| {
                         THEMES.get(parent).and_then(|parent| {
-                            parent.try_get_icon(self.name, self.size, self.scale)
+                            parent.try_get_icon(self.name, self.size, self.scale, self.force_svg)
                         })
                     })
                 })
@@ -225,10 +245,10 @@ impl<'a> LookupBuilder<'a> {
                     THEMES
                         .get("hicolor")
                         // Fallback to 'hicolor'
-                        .and_then(|hicolor| hicolor.try_get_icon(self.name, self.size, self.scale))
+                        .and_then(|hicolor| hicolor.try_get_icon(self.name, self.size, self.scale, self.force_svg))
                 })
                 // Last chance, try to find the icon in "/usr/share/pixmaps"
-                .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps"));
+                .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg));
 
             if self.cache {
                 self.store(self.theme, icon)
