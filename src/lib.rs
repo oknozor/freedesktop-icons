@@ -245,7 +245,9 @@ impl<'a> LookupBuilder<'a> {
                     THEMES
                         .get("hicolor")
                         // Fallback to 'hicolor'
-                        .and_then(|hicolor| hicolor.try_get_icon(self.name, self.size, self.scale, self.force_svg))
+                        .and_then(|hicolor| {
+                            hicolor.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                        })
                 })
                 // Last chance, try to find the icon in "/usr/share/pixmaps"
                 .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg));

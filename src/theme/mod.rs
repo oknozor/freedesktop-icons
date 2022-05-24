@@ -23,17 +23,29 @@ pub struct Theme {
 }
 
 impl Theme {
-    pub fn try_get_icon(&self, name: &str, size: u16, scale: u16, force_svg: bool) -> Option<PathBuf> {
+    pub fn try_get_icon(
+        &self,
+        name: &str,
+        size: u16,
+        scale: u16,
+        force_svg: bool,
+    ) -> Option<PathBuf> {
         self.try_get_icon_exact_size(name, size, scale, force_svg)
             .or_else(|| self.try_get_icon_closest_size(name, size, scale, force_svg))
     }
 
-    fn try_get_icon_exact_size(&self, name: &str, size: u16, scale: u16, force_svg: bool) -> Option<PathBuf> {
+    fn try_get_icon_exact_size(
+        &self,
+        name: &str,
+        size: u16,
+        scale: u16,
+        force_svg: bool,
+    ) -> Option<PathBuf> {
         self.match_size(size, scale)
             .find_map(|path| try_build_icon_path(name, path, force_svg))
     }
 
-    fn match_size(&self, size: u16, scale: u16) -> impl Iterator<Item=PathBuf> + '_ {
+    fn match_size(&self, size: u16, scale: u16) -> impl Iterator<Item = PathBuf> + '_ {
         let dirs = self.get_all_directories();
 
         dirs.filter(move |directory| directory.match_size(size, scale))
@@ -41,7 +53,13 @@ impl Theme {
             .map(|dir| self.path().join(dir))
     }
 
-    fn try_get_icon_closest_size(&self, name: &str, size: u16, scale: u16, force_svg: bool) -> Option<PathBuf> {
+    fn try_get_icon_closest_size(
+        &self,
+        name: &str,
+        size: u16,
+        scale: u16,
+        force_svg: bool,
+    ) -> Option<PathBuf> {
         self.closest_match_size(size, scale)
             .iter()
             .find_map(|path| try_build_icon_path(name, path, force_svg))
@@ -61,14 +79,17 @@ impl Theme {
     }
 }
 
-pub(super) fn try_build_icon_path<P: AsRef<Path>>(name: &str, path: P, force_svg: bool) -> Option<PathBuf> {
+pub(super) fn try_build_icon_path<P: AsRef<Path>>(
+    name: &str,
+    path: P,
+    force_svg: bool,
+) -> Option<PathBuf> {
     if force_svg {
         try_build_svg(name, path.as_ref())
     } else {
         try_build_png(name, path.as_ref())
-            .or(try_build_svg(name, path.as_ref()))
-            .or(try_build_xmp(name, path.as_ref()))
-
+            .or_else(|| try_build_svg(name, path.as_ref()))
+            .or_else(|| try_build_xmp(name, path.as_ref()))
     }
 }
 
@@ -101,7 +122,6 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
         None
     }
 }
-
 
 // Iter through the base paths and get all theme directories
 pub(super) fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
@@ -148,9 +168,9 @@ impl Debug for Theme {
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-    use speculoos::prelude::*;
     use crate::THEMES;
+    use speculoos::prelude::*;
+    use std::path::PathBuf;
 
     #[test]
     fn get_one_icon() {
@@ -165,17 +185,17 @@ mod test {
     fn should_get_png_first() {
         let theme = THEMES.get("hicolor").unwrap();
         let icon = theme.try_get_icon_exact_size("blueman", 24, 1, true);
-        assert_that!(icon)
-            .is_some()
-            .is_equal_to(PathBuf::from("/usr/share/icons/hicolor/scalable/apps/blueman.svg"));
+        assert_that!(icon).is_some().is_equal_to(PathBuf::from(
+            "/usr/share/icons/hicolor/scalable/apps/blueman.svg",
+        ));
     }
 
     #[test]
     fn should_get_svg_first() {
         let theme = THEMES.get("hicolor").unwrap();
         let icon = theme.try_get_icon_exact_size("blueman", 24, 1, false);
-        assert_that!(icon)
-            .is_some()
-            .is_equal_to(PathBuf::from("/usr/share/icons/hicolor/22x22/apps/blueman.png"));
+        assert_that!(icon).is_some().is_equal_to(PathBuf::from(
+            "/usr/share/icons/hicolor/22x22/apps/blueman.png",
+        ));
     }
 }
