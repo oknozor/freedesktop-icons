@@ -62,16 +62,20 @@ impl Theme {
     ) -> Option<PathBuf> {
         self.closest_match_size(size, scale)
             .iter()
-            .find_map(|path| try_build_icon_path(name, path, force_svg))
+            .find_map(|(_, path)| try_build_icon_path(name, path, force_svg))
     }
 
-    fn closest_match_size(&self, size: u16, scale: u16) -> Vec<PathBuf> {
+    fn closest_match_size(&self, size: u16, scale: u16) -> Vec<(i16, PathBuf)> {
         let dirs = self.get_all_directories();
 
-        dirs.filter(|directory| directory.directory_size_distance(size, scale) < i16::MAX)
-            .map(|dir| dir.name)
-            .map(|dir| self.path().join(dir))
-            .collect()
+        let mut dirs: Vec<_> = dirs
+            .map(|directory| {
+                let distance = directory.directory_size_distance(size, scale);
+                (distance, self.path().join(directory.name))
+            })
+            .collect();
+        dirs.sort_by_key(|(d, _)| *d);
+        dirs
     }
 
     fn path(&self) -> &PathBuf {
