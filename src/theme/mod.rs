@@ -2,7 +2,7 @@ use crate::theme::error::ThemeError;
 use crate::theme::paths::ThemePath;
 use ini::Ini;
 use once_cell::sync::Lazy;
-use paths::BASE_PATHS;
+pub(crate) use paths::BASE_PATHS;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
@@ -96,6 +96,7 @@ pub(super) fn try_build_icon_path<P: AsRef<Path>>(
 fn try_build_svg<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
     let path = path.as_ref();
     let svg = path.join(format!("{name}.svg"));
+
     if svg.exists() {
         Some(svg)
     } else {
@@ -106,6 +107,7 @@ fn try_build_svg<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
 fn try_build_png<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
     let path = path.as_ref();
     let png = path.join(format!("{name}.png"));
+
     if png.exists() {
         Some(png)
     } else {
@@ -139,7 +141,7 @@ pub(super) fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
 }
 
 impl Theme {
-    fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+    pub(crate) fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
         let path = path.as_ref();
 
         let has_index = path.join("index.theme").exists();
