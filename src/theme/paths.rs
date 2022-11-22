@@ -3,8 +3,8 @@ use crate::theme::error::ThemeError;
 use dirs::home_dir;
 use ini::Ini;
 use once_cell::sync::Lazy;
-use xdg::BaseDirectories;
 use std::path::PathBuf;
+use xdg::BaseDirectories;
 
 pub(crate) static BASE_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(icon_theme_base_paths);
 
@@ -12,13 +12,16 @@ pub(crate) static BASE_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(icon_theme_base_pat
 /// Paths that are not found are filtered out.
 fn icon_theme_base_paths() -> Vec<PathBuf> {
     let home_icon_dir = home_dir().expect("No $HOME directory").join(".icons");
-    let mut data_dirs = BaseDirectories::new().map(|bd| bd.get_data_dirs()).unwrap_or_default();
+    let mut data_dirs: Vec<_> = BaseDirectories::new()
+        .map(|bd| {
+            bd.get_data_dirs()
+                .into_iter()
+                .map(|p| p.join("icons"))
+                .collect()
+        })
+        .unwrap_or_default();
     data_dirs.push(home_icon_dir);
-
-    data_dirs
-    .into_iter()
-    .filter(|p| p.exists())
-    .collect()
+    data_dirs.into_iter().filter(|p| p.exists()).collect()
 }
 
 #[derive(Debug)]

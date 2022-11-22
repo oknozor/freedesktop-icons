@@ -51,6 +51,8 @@
 //!     .find();
 //! # }
 //! ```
+use theme::{Theme, BASE_PATHS};
+
 use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
 use std::path::PathBuf;
@@ -242,15 +244,25 @@ impl<'a> LookupBuilder<'a> {
                     })
                 })
                 .or_else(|| {
-                    THEMES
-                        .get("hicolor")
-                        // Fallback to 'hicolor'
-                        .and_then(|hicolor| {
-                            hicolor.try_get_icon(self.name, self.size, self.scale, self.force_svg)
-                        })
+                    for theme_base_dir in BASE_PATHS.iter() {
+                        let theme = Theme::from_path(theme_base_dir.join("hicolor"));
+                        if let Some(icon) = theme.and_then(|theme| {
+                            theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                        }) {
+                            return Some(icon);
+                        }
+                    }
+                    None
                 })
-                // Last chance, try to find the icon in "/usr/share/pixmaps"
-                .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg));
+                .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg))
+                .or_else(|| {
+                    let p = PathBuf::from(&self.name);
+                    if let (Some(name), Some(parent)) = (p.file_name(), p.parent()) {
+                        try_build_icon_path(&name.to_string_lossy(), parent, self.force_svg)
+                    } else {
+                        None
+                    }
+                });
 
             if self.cache {
                 self.store(self.theme, icon)
