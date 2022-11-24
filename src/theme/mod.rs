@@ -68,7 +68,21 @@ impl Theme {
     fn closest_match_size(&self, size: u16, scale: u16) -> Vec<PathBuf> {
         let dirs = self.get_all_directories();
 
-        dirs.filter(|directory| directory.directory_size_distance(size, scale) < i16::MAX)
+        let mut dirs: Vec<_> = dirs
+            .filter_map(|directory| {
+                let distance = directory.directory_size_distance(size, scale);
+                if distance < i16::MAX {
+                    Some((directory, distance))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        dirs.sort_by(|(_, a), (_, b)| a.cmp(b));
+
+        dirs.iter()
+            .map(|(dir, _)| dir)
             .map(|dir| dir.name)
             .map(|dir| self.path().join(dir))
             .collect()
