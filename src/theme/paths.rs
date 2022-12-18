@@ -28,7 +28,6 @@ fn icon_theme_base_paths() -> Vec<PathBuf> {
     ];
 
     dirs.extend(xdg_data_dirs_sys_vec);
-    println!("{dirs:#?}");
     dirs.into_iter().filter(|p| p.exists()).collect()
 }
 
