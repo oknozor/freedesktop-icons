@@ -14,16 +14,22 @@ fn icon_theme_base_paths() -> Vec<PathBuf> {
     let usr_data_dir = data_dir().expect("No $XDG_DATA_DIR").join("icons");
     let xdg_data_dirs_local = PathBuf::from("/usr/local/share/").join("icons");
     let xdg_data_dirs = PathBuf::from("/usr/share/").join("icons");
+    let mut xdg_data_dirs_sys_vec: Vec<PathBuf> = vec![];
+    let xdg_data_dirs_sys_raw = std::env::var("XDG_DATA_DIRS").expect("No $XDG_DATA_DIRS");
+    for i in xdg_data_dirs_sys_raw.split(':') {
+        xdg_data_dirs_sys_vec.push(PathBuf::from(i).join("icons"));
+    }
 
-    [
+    let mut dirs = vec![
         home_icon_dir,
         usr_data_dir,
         xdg_data_dirs_local,
         xdg_data_dirs,
-    ]
-    .into_iter()
-    .filter(|p| p.exists())
-    .collect()
+    ];
+
+    dirs.extend(xdg_data_dirs_sys_vec);
+    println!("{dirs:#?}");
+    dirs.into_iter().filter(|p| p.exists()).collect()
 }
 
 #[derive(Debug)]
