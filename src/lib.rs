@@ -358,7 +358,7 @@ mod test {
             .with_theme("Papirus")
             .find();
 
-        asserting!("Given the same input parameter, lookup should ouput be the same as linincon")
+        asserting!("Given the same input parameter, lookup should output be the same as linincon")
             .that(&wireshark)
             .is_some()
             .is_equal_to(lin_wireshark);
