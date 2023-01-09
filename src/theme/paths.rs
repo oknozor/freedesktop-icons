@@ -61,7 +61,7 @@ mod test {
     #[test]
     fn should_read_theme_index() -> Result<()> {
         let themes = get_all_themes()?;
-        let themes: Vec<&Theme> = themes.values().collect();
+        let themes: Vec<&Theme> = themes.values().flatten().collect();
         assert_that!(themes).is_not_empty();
         Ok(())
     }
