@@ -88,11 +88,18 @@ mod test {
 
     #[test]
     fn should_get_theme_parents() {
-        let theme = THEMES.get("Arc").unwrap();
-        let parents = theme.inherits();
+        for theme in THEMES.get("Arc").unwrap() {
+            let parents = theme.inherits();
 
-        assert_that!(parents).does_not_contain("hicolor");
+            assert_that!(parents).does_not_contain("hicolor");
 
-        assert_that!(parents).is_equal_to(vec!["Moka", "Faba", "elementary", "Adwaita", "gnome"]);
+            assert_that!(parents).is_equal_to(vec![
+                "Moka",
+                "Faba",
+                "elementary",
+                "Adwaita",
+                "gnome",
+            ]);
+        }
     }
 }

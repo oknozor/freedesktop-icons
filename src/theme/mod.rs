@@ -14,7 +14,7 @@ mod paths;
 
 type Result<T> = std::result::Result<T, ThemeError>;
 
-pub static THEMES: Lazy<BTreeMap<String, Theme>> =
+pub static THEMES: Lazy<BTreeMap<String, Vec<Theme>>> =
     Lazy::new(|| get_all_themes().expect("Failed to get theme paths"));
 
 pub struct Theme {
@@ -140,14 +140,14 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
 }
 
 // Iter through the base paths and get all theme directories
-pub(super) fn get_all_themes() -> Result<BTreeMap<String, Theme>> {
-    let mut icon_themes = BTreeMap::new();
+pub(super) fn get_all_themes() -> Result<BTreeMap<String, Vec<Theme>>> {
+    let mut icon_themes = BTreeMap::<_, Vec<_>>::new();
     for theme_base_dir in BASE_PATHS.iter() {
         for entry in theme_base_dir.read_dir()? {
             let entry = entry?;
             if let Some(theme) = Theme::from_path(entry.path()) {
                 let name = entry.file_name().to_string_lossy().to_string();
-                icon_themes.insert(name, theme);
+                icon_themes.entry(name).or_default().push(theme);
             }
         }
     }
@@ -190,17 +190,24 @@ mod test {
 
     #[test]
     fn get_one_icon() {
-        let theme = THEMES.get("Adwaita").unwrap();
+        let themes = THEMES.get("Adwaita").unwrap();
         println!(
             "{:?}",
-            theme.try_get_icon_exact_size("edit-delete-symbolic", 24, 1, false)
+            themes.iter().find_map(|t| t.try_get_icon_exact_size(
+                "edit-delete-symbolic",
+                24,
+                1,
+                false
+            ))
         );
     }
 
     #[test]
     fn should_get_png_first() {
-        let theme = THEMES.get("hicolor").unwrap();
-        let icon = theme.try_get_icon_exact_size("blueman", 24, 1, true);
+        let themes = THEMES.get("hicolor").unwrap();
+        let icon = themes
+            .iter()
+            .find_map(|t| t.try_get_icon_exact_size("blueman", 24, 1, true));
         assert_that!(icon).is_some().is_equal_to(PathBuf::from(
             "/usr/share/icons/hicolor/scalable/apps/blueman.svg",
         ));
@@ -208,8 +215,10 @@ mod test {
 
     #[test]
     fn should_get_svg_first() {
-        let theme = THEMES.get("hicolor").unwrap();
-        let icon = theme.try_get_icon_exact_size("blueman", 24, 1, false);
+        let themes = THEMES.get("hicolor").unwrap();
+        let icon = themes
+            .iter()
+            .find_map(|t| t.try_get_icon_exact_size("blueman", 24, 1, false));
         assert_that!(icon).is_some().is_equal_to(PathBuf::from(
             "/usr/share/icons/hicolor/22x22/apps/blueman.png",
         ));

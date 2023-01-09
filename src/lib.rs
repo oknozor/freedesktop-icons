@@ -75,15 +75,18 @@ mod theme;
 /// ])
 /// # }
 pub fn list_themes() -> Vec<&'static str> {
-    THEMES
+    let mut themes = THEMES
         .values()
+        .flatten()
         .map(|path| &path.index)
         .filter_map(|index| {
             index
                 .section(Some("Icon Theme"))
                 .and_then(|section| section.get("Name"))
         })
-        .collect()
+        .collect::<Vec<_>>();
+    themes.dedup();
+    themes
 }
 
 /// The lookup builder struct, holding all the lookup query parameters.
@@ -232,14 +235,24 @@ impl<'a> LookupBuilder<'a> {
         }
 
         // Then lookup in the given theme
-        THEMES.get(self.theme).and_then(|icon_theme| {
-            let icon = icon_theme
-                .try_get_icon(self.name, self.size, self.scale, self.force_svg)
+        THEMES.get(self.theme).and_then(|icon_themes| {
+            let icon = icon_themes
+                .iter()
+                .find_map(|theme| {
+                    theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                })
                 .or_else(|| {
                     // Fallback to the parent themes recursively
-                    icon_theme.inherits().into_iter().find_map(|parent| {
+                    let mut parents = icon_themes
+                        .iter()
+                        .flat_map(|t| t.inherits())
+                        .collect::<Vec<_>>();
+                    parents.dedup();
+                    parents.into_iter().find_map(|parent| {
                         THEMES.get(parent).and_then(|parent| {
-                            parent.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                            parent.iter().find_map(|t| {
+                                t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                            })
                         })
                     })
                 })
