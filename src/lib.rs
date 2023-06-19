@@ -51,11 +51,12 @@
 //!     .find();
 //! # }
 //! ```
-use theme::{Theme, BASE_PATHS};
+use theme::{get_themes_in_dir, Theme, BASE_PATHS};
 
 use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 mod cache;
 mod theme;
@@ -97,6 +98,7 @@ pub struct LookupBuilder<'a> {
     scale: u16,
     size: u16,
     theme: &'a str,
+    custom_xdg_themes: Option<BTreeMap<String, Vec<Theme>>>,
 }
 
 /// Build an icon lookup for the given icon name.
@@ -180,6 +182,32 @@ impl<'a> LookupBuilder<'a> {
         self
     }
 
+    /// Force freedesktop_icons to only lookup icons within a specific
+    /// folder. This should not be used normally, only in testing
+    /// situations.  When used, the current lookup will ignore the
+    /// cache, regardless of the use of `with_cache`
+    ///
+    /// ## Example
+    /// ```rust
+    /// # fn main() {
+    /// use freedesktop_icons::lookup;
+    ///
+    /// let icon = lookup("firefox")
+    ///     .with_xdg_dir("my/temp/testing/dir")
+    ///     .with_cache() // no-op
+    ///     .find();
+    /// # }
+    pub fn with_xdg_dir<P: AsRef<Path>>(mut self, path: P) -> Self {
+        if let Ok(themes) = get_themes_in_dir(path.as_ref()) {
+            self.custom_xdg_themes = Some(BTreeMap::from_iter(themes.map(|(k, v)| (k, vec![v]))));
+        } else {
+            // if we encountered an error during parsing the one-off
+            // themes folder, store an empty themes structure: no themes can be returned
+            self.custom_xdg_themes = Some(Default::default());
+        }
+        self
+    }
+
     /// By default [`find`] will prioritize Png over Svg icon.
     /// Use this if you need to prioritize Svg icons. This could be useful
     /// if you need a modifiable icon, to match a user theme for instance.
@@ -214,15 +242,27 @@ impl<'a> LookupBuilder<'a> {
             scale: 1,
             size: 24,
             theme: "hicolor",
+            custom_xdg_themes: None,
+        }
+    }
+
+    fn themes(&'a self) -> &'a BTreeMap<String, Vec<Theme>> {
+        if let Some(themes) = &self.custom_xdg_themes {
+            themes
+        } else {
+            &THEMES
         }
     }
 
     // Recursively lookup for icon in the given theme and its parents
     fn lookup_in_theme(&self) -> Option<PathBuf> {
+        // only use cache if we have not overridden the XDG directories
+        let use_cache = self.cache && self.custom_xdg_themes.is_none();
+
         // If cache is activated, attempt to get the icon there first
         // If the icon was previously search but not found, we return
         // `None` early, otherwise, attempt to perform a lookup
-        if self.cache {
+        if use_cache {
             match self.cache_lookup(self.theme) {
                 CacheEntry::Found(icon) => {
                     return Some(icon);
@@ -235,7 +275,7 @@ impl<'a> LookupBuilder<'a> {
         }
 
         // Then lookup in the given theme
-        THEMES.get(self.theme).and_then(|icon_themes| {
+        self.themes().get(self.theme).and_then(|icon_themes| {
             let icon = icon_themes
                 .iter()
                 .find_map(|theme| {
@@ -249,7 +289,7 @@ impl<'a> LookupBuilder<'a> {
                         .collect::<Vec<_>>();
                     parents.dedup();
                     parents.into_iter().find_map(|parent| {
-                        THEMES.get(parent).and_then(|parent| {
+                        self.themes().get(parent).and_then(|parent| {
                             parent.iter().find_map(|t| {
                                 t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
                             })
@@ -257,12 +297,16 @@ impl<'a> LookupBuilder<'a> {
                     })
                 })
                 .or_else(|| {
-                    for theme_base_dir in BASE_PATHS.iter() {
-                        let theme = Theme::from_path(theme_base_dir.join("hicolor"));
-                        if let Some(icon) = theme.and_then(|theme| {
-                            theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
-                        }) {
-                            return Some(icon);
+                    // fall back to checking basepaths for default
+                    // theme, but only if custom xdg is not being used
+                    if self.custom_xdg_themes.is_none() {
+                        for theme_base_dir in BASE_PATHS.iter() {
+                            let theme = Theme::from_path(theme_base_dir.join("hicolor"));
+                            if let Some(icon) = theme.and_then(|theme| {
+                                theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                            }) {
+                                return Some(icon);
+                            }
                         }
                     }
                     None
@@ -277,7 +321,8 @@ impl<'a> LookupBuilder<'a> {
                     }
                 });
 
-            if self.cache {
+            println!("storing icon {:?}", icon);
+            if use_cache {
                 self.store(self.theme, icon)
             } else {
                 icon
@@ -388,5 +433,50 @@ mod test {
         asserting!("When lookup fails a first time, subsequent attempts should fail from cache")
             .that(&expected_cache_result)
             .is_equal_to(CacheEntry::NotFound);
+    }
+
+    #[test]
+    fn custom_xdg() {
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+
+        // build a barebones hicolor theme in the tempdir
+        let theme_folder = dir.path().join("hicolor");
+        std::fs::create_dir_all(&theme_folder).unwrap();
+        let index_text = r#"[Icon Theme]
+              Name=Hicolor
+              Directories=48x48/apps
+              [48x48/apps]
+              Size=48
+              Context=Applications
+              Type=Threshold
+              "#
+        .as_bytes();
+
+        std::fs::write(theme_folder.join("index.theme"), index_text).unwrap();
+
+        let icon_folder = theme_folder.join("48x48/apps");
+        std::fs::create_dir_all(&icon_folder).unwrap();
+
+        // no icons added yet to hicolor theme, so we should not find anything
+        let not_found = lookup("not-found")
+            .with_xdg_dir(dir.path())
+            .with_cache()
+            .find();
+        assert_that!(not_found).is_none();
+
+        std::fs::File::create(icon_folder.join("not-found.png")).unwrap();
+
+        // normally we would cache the failed lookup from before, but
+        // this is disabled if we use with_xdg_dir
+        let not_found = lookup("not-found")
+            .with_xdg_dir(dir.path())
+            .with_cache()
+            .find();
+
+        assert_that!(not_found)
+            .is_some()
+            .is_equal_to(dir.path().join("hicolor/48x48/apps/not-found.png"));
     }
 }

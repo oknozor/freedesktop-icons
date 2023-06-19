@@ -139,16 +139,25 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
     }
 }
 
+pub(super) fn get_themes_in_dir(path: &Path) -> Result<impl Iterator<Item = (String, Theme)>> {
+    path.read_dir()?
+        .filter_map(|entry| match entry {
+            Ok(entry) => Theme::from_path(entry.path()).map(|theme| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                Ok((name, theme))
+            }),
+            Err(err) => Some(Err(err.into())),
+        })
+        .collect::<Result<Vec<_>>>()
+        .map(Vec::into_iter)
+}
+
 // Iter through the base paths and get all theme directories
 pub(super) fn get_all_themes() -> Result<BTreeMap<String, Vec<Theme>>> {
     let mut icon_themes = BTreeMap::<_, Vec<_>>::new();
     for theme_base_dir in BASE_PATHS.iter() {
-        for entry in theme_base_dir.read_dir()? {
-            let entry = entry?;
-            if let Some(theme) = Theme::from_path(entry.path()) {
-                let name = entry.file_name().to_string_lossy().to_string();
-                icon_themes.entry(name).or_default().push(theme);
-            }
+        for (name, theme) in get_themes_in_dir(theme_base_dir)? {
+            icon_themes.entry(name).or_default().push(theme);
         }
     }
     Ok(icon_themes)
