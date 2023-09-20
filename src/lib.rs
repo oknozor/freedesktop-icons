@@ -267,6 +267,16 @@ impl<'a> LookupBuilder<'a> {
                     }
                     None
                 })
+                .or_else(|| {
+                    for theme_base_dir in BASE_PATHS.iter() {
+                        if let Some(icon) =
+                            try_build_icon_path(self.name, theme_base_dir, self.force_svg)
+                        {
+                            return Some(icon);
+                        }
+                    }
+                    None
+                })
                 .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg))
                 .or_else(|| {
                     let p = PathBuf::from(&self.name);
