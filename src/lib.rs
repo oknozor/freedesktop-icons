@@ -280,7 +280,7 @@ impl<'a> LookupBuilder<'a> {
                 .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg))
                 .or_else(|| {
                     let p = PathBuf::from(&self.name);
-                    if let (Some(name), Some(parent)) = (p.file_name(), p.parent()) {
+                    if let (Some(name), Some(parent)) = (p.file_stem(), p.parent()) {
                         try_build_icon_path(&name.to_string_lossy(), parent, self.force_svg)
                     } else {
                         None
