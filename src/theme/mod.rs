@@ -3,7 +3,7 @@ use crate::theme::paths::ThemePath;
 use ini::Ini;
 use once_cell::sync::Lazy;
 pub(crate) use paths::BASE_PATHS;
-use std::collections::BTreeMap;
+use std::{collections::{BTreeMap, BTreeSet}, fs::FileType};
 use std::fmt::{Debug, Formatter};
 use std::path::{Path, PathBuf};
 
@@ -142,14 +142,24 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
 // Iter through the base paths and get all theme directories
 pub(super) fn get_all_themes() -> Result<BTreeMap<String, Vec<Theme>>> {
     let mut icon_themes = BTreeMap::<_, Vec<_>>::new();
+    let mut potential_themes = BTreeSet::new();
     for theme_base_dir in BASE_PATHS.iter() {
         for entry in theme_base_dir.read_dir()? {
             let entry = entry?;
             if let Some(theme) = Theme::from_path(entry.path()) {
                 let name = entry.file_name().to_string_lossy().to_string();
                 icon_themes.entry(name).or_default().push(theme);
+            } else if entry.file_type().as_ref().map_or(false, FileType::is_dir) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                potential_themes.insert((entry.path(), name));
             }
         }
+    }
+    for (path, name) in potential_themes {
+        let Some(themes) = icon_themes.get_mut(&name) else { continue; };
+        let Some(parent) = themes.first() else { continue; };
+        let Some(theme) = Theme::from_path_and_index(path, parent.index.clone()) else { continue; };
+        themes.push(theme);
     }
     Ok(icon_themes)
 }
@@ -170,6 +180,18 @@ impl Theme {
             Ok(index) => Some(Theme { path, index }),
             Err(_) => None,
         }
+    }
+
+    pub(crate) fn from_path_and_index<P: AsRef<Path>>(path: P, index: Ini) -> Option<Self> {
+        let path = path.as_ref();
+
+        if !path.is_dir() {
+            return None;
+        }
+
+        let path = ThemePath(path.into());
+
+        Some(Theme { path, index })
     }
 }
 
