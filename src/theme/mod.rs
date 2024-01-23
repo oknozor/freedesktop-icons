@@ -142,23 +142,43 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
 // Iter through the base paths and get all theme directories
 pub(super) fn get_all_themes() -> Result<BTreeMap<String, Vec<Theme>>> {
     let mut icon_themes = BTreeMap::<_, Vec<_>>::new();
+    let mut found_indices = BTreeMap::new();
+    let mut to_revisit = Vec::new();
+
     for theme_base_dir in BASE_PATHS.iter() {
         for entry in theme_base_dir.read_dir()? {
             let entry = entry?;
-            if let Some(theme) = Theme::from_path(entry.path()) {
-                let name = entry.file_name().to_string_lossy().to_string();
+            let name = entry.file_name();
+            let fallback_index = found_indices.get(&name);
+            if let Some(theme) = Theme::from_path(entry.path(), fallback_index) {
+                if fallback_index.is_none() {
+                    found_indices.insert(name.clone(), theme.index.clone());
+                }
+                let name = name.to_string_lossy().to_string();
                 icon_themes.entry(name).or_default().push(theme);
+            } else if entry.path().is_dir() {
+                to_revisit.push(entry);
             }
         }
     }
+
+    for entry in to_revisit {
+        let name = entry.file_name();
+        let fallback_index = found_indices.get(&name);
+        if let Some(theme) = Theme::from_path(entry.path(), fallback_index) {
+            let name = name.to_string_lossy().to_string();
+            icon_themes.entry(name).or_default().push(theme);
+        }
+    }
+
     Ok(icon_themes)
 }
 
 impl Theme {
-    pub(crate) fn from_path<P: AsRef<Path>>(path: P) -> Option<Self> {
+    pub(crate) fn from_path<P: AsRef<Path>>(path: P, index: Option<&Ini>) -> Option<Self> {
         let path = path.as_ref();
 
-        let has_index = path.join("index.theme").exists();
+        let has_index = path.join("index.theme").exists() || index.is_some();
 
         if !has_index || !path.is_dir() {
             return None;
@@ -166,9 +186,13 @@ impl Theme {
 
         let path = ThemePath(path.into());
 
-        match path.index() {
-            Ok(index) => Some(Theme { path, index }),
-            Err(_) => None,
+        match (index, path.index()) {
+            (Some(index), _) => Some(Theme {
+                path,
+                index: index.clone(),
+            }),
+            (None, Ok(index)) => Some(Theme { path, index }),
+            _ => None,
         }
     }
 }

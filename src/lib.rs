@@ -51,7 +51,7 @@
 //!     .find();
 //! # }
 //! ```
-use theme::{Theme, BASE_PATHS};
+use theme::BASE_PATHS;
 
 use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
@@ -257,15 +257,11 @@ impl<'a> LookupBuilder<'a> {
                     })
                 })
                 .or_else(|| {
-                    for theme_base_dir in BASE_PATHS.iter() {
-                        let theme = Theme::from_path(theme_base_dir.join("hicolor"));
-                        if let Some(icon) = theme.and_then(|theme| {
+                    THEMES.get("hicolor").and_then(|icon_themes| {
+                        icon_themes.iter().find_map(|theme| {
                             theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
-                        }) {
-                            return Some(icon);
-                        }
-                    }
-                    None
+                        })
+                    })
                 })
                 .or_else(|| {
                     for theme_base_dir in BASE_PATHS.iter() {
