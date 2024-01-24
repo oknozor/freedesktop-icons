@@ -16,7 +16,8 @@ fn icon_theme_base_paths() -> Vec<PathBuf> {
     let home_icon_dir = home_dir().expect("No $HOME directory").join(".icons");
     let mut data_dirs: Vec<_> = BaseDirectories::new()
         .map(|bd| {
-            let mut data_dirs: Vec<_> = bd.get_data_dirs()
+            let mut data_dirs: Vec<_> = bd
+                .get_data_dirs()
                 .into_iter()
                 .map(|p| p.join("icons"))
                 .collect();
@@ -26,8 +27,6 @@ fn icon_theme_base_paths() -> Vec<PathBuf> {
         .unwrap_or_default();
     data_dirs.push(home_icon_dir);
     data_dirs.into_iter().filter(|p| p.exists()).collect()
-
-
 }
 
 #[derive(Debug)]
