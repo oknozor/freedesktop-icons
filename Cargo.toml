@@ -10,15 +10,15 @@ readme = "README.md"
 keywords = ["icons", "gui", "freedesktop"]
 
 [dependencies]
-dirs = "4.0.0"
-rust-ini = "0.18.0"
-thiserror = "1.0.31"
-once_cell = "1.10.0"
-xdg = "2.4.1"
+dirs = "5.0.1"
+rust-ini = "0.20.0"
+thiserror = "1.0.56"
+once_cell = "1.19.0"
+xdg = "2.5.2"
 
 [dev-dependencies]
-speculoos = "0.9.0"
-anyhow = "1.0.57"
+speculoos = "0.11.0"
+anyhow = "1.0.79"
 linicon = "2.3.0"
 gtk4 = "0.4.7"
 criterion = "0.3.5"
