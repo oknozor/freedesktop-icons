@@ -235,60 +235,65 @@ impl<'a> LookupBuilder<'a> {
         }
 
         // Then lookup in the given theme
-        THEMES.get(self.theme).and_then(|icon_themes| {
-            let icon = icon_themes
-                .iter()
-                .find_map(|theme| {
-                    theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
-                })
-                .or_else(|| {
-                    // Fallback to the parent themes recursively
-                    let mut parents = icon_themes
-                        .iter()
-                        .flat_map(|t| t.inherits())
-                        .collect::<Vec<_>>();
-                    parents.dedup();
-                    parents.into_iter().find_map(|parent| {
-                        THEMES.get(parent).and_then(|parent| {
-                            parent.iter().find_map(|t| {
-                                t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+        THEMES
+            .get(self.theme)
+            .or_else(|| THEMES.get("hicolor"))
+            .and_then(|icon_themes| {
+                let icon = icon_themes
+                    .iter()
+                    .find_map(|theme| {
+                        theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                    })
+                    .or_else(|| {
+                        // Fallback to the parent themes recursively
+                        let mut parents = icon_themes
+                            .iter()
+                            .flat_map(|t| t.inherits())
+                            .collect::<Vec<_>>();
+                        parents.dedup();
+                        parents.into_iter().find_map(|parent| {
+                            THEMES.get(parent).and_then(|parent| {
+                                parent.iter().find_map(|t| {
+                                    t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                                })
                             })
                         })
                     })
-                })
-                .or_else(|| {
-                    THEMES.get("hicolor").and_then(|icon_themes| {
-                        icon_themes.iter().find_map(|theme| {
-                            theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                    .or_else(|| {
+                        THEMES.get("hicolor").and_then(|icon_themes| {
+                            icon_themes.iter().find_map(|theme| {
+                                theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                            })
                         })
                     })
-                })
-                .or_else(|| {
-                    for theme_base_dir in BASE_PATHS.iter() {
-                        if let Some(icon) =
-                            try_build_icon_path(self.name, theme_base_dir, self.force_svg)
-                        {
-                            return Some(icon);
+                    .or_else(|| {
+                        for theme_base_dir in BASE_PATHS.iter() {
+                            if let Some(icon) =
+                                try_build_icon_path(self.name, theme_base_dir, self.force_svg)
+                            {
+                                return Some(icon);
+                            }
                         }
-                    }
-                    None
-                })
-                .or_else(|| try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg))
-                .or_else(|| {
-                    let p = PathBuf::from(&self.name);
-                    if let (Some(name), Some(parent)) = (p.file_stem(), p.parent()) {
-                        try_build_icon_path(&name.to_string_lossy(), parent, self.force_svg)
-                    } else {
                         None
-                    }
-                });
+                    })
+                    .or_else(|| {
+                        try_build_icon_path(self.name, "/usr/share/pixmaps", self.force_svg)
+                    })
+                    .or_else(|| {
+                        let p = PathBuf::from(&self.name);
+                        if let (Some(name), Some(parent)) = (p.file_stem(), p.parent()) {
+                            try_build_icon_path(&name.to_string_lossy(), parent, self.force_svg)
+                        } else {
+                            None
+                        }
+                    });
 
-            if self.cache {
-                self.store(self.theme, icon)
-            } else {
-                icon
-            }
-        })
+                if self.cache {
+                    self.store(self.theme, icon)
+                } else {
+                    icon
+                }
+            })
     }
 
     #[inline]
