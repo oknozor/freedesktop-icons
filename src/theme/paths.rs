@@ -10,7 +10,7 @@ use crate::theme::error::ThemeError;
 
 pub(crate) static BASE_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(icon_theme_base_paths);
 
-/// Look in $HOME/.icons (for backwards compatibility), in $XDG_DATA_DIRS/icons and in /usr/share/pixmaps (in that order).
+/// Look in $HOME/.icons (for backwards compatibility), in $XDG_DATA_DIRS/icons, in $XDG_DATA_DIRS/pixmaps and in /usr/share/pixmaps (in that order).
 /// Paths that are not found are filtered out.
 fn icon_theme_base_paths() -> Vec<PathBuf> {
     let home_icon_dir = home_dir().expect("No $HOME directory").join(".icons");
@@ -19,9 +19,11 @@ fn icon_theme_base_paths() -> Vec<PathBuf> {
             let mut data_dirs: Vec<_> = bd
                 .get_data_dirs()
                 .into_iter()
-                .map(|p| p.join("icons"))
+                .flat_map(|p| [p.join("icons"), p.join("pixmaps")])
                 .collect();
-            data_dirs.push(bd.get_data_home().join("icons"));
+            let data_home = bd.get_data_home();
+            data_dirs.push(data_home.join("icons"));
+            data_dirs.push(data_home.join("pixmaps"));
             data_dirs
         })
         .unwrap_or_default();
