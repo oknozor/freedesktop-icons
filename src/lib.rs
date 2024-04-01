@@ -89,6 +89,42 @@ pub fn list_themes() -> Vec<&'static str> {
     themes
 }
 
+/// Return the default GTK theme if set.
+///
+/// ## Example
+/// ```rust
+/// use freedesktop_icons::default_theme_gtk;
+///
+/// let theme = default_theme_gtk();
+///
+/// assert_eq!(Some("Adwaita"), theme);
+/// ```
+pub fn default_theme_gtk() -> Option<&'static str> {
+    // Calling gsettings is the simplest way to retrieve the default icon theme without adding
+    // GTK as a dependency. There seems to be several ways to set the default GTK theme
+    // including a file in XDG_CONFIG_HOME as well as an env var. Gsettings is the most
+    // straightforward method.
+    let gsettings = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "icon-theme"])
+        .output()
+        .ok()?;
+
+    // Only return the theme if it's in the cache.
+    if gsettings.status.success() {
+        let name = String::from_utf8(gsettings.stdout).ok()?;
+        let name = name.trim().trim_matches('\'');
+        THEMES.get(name).and_then(|themes| {
+            themes.first().and_then(|path| {
+                path.index
+                    .section(Some("Icon Theme"))
+                    .and_then(|section| section.get("Name"))
+            })
+        })
+    } else {
+        None
+    }
+}
+
 /// The lookup builder struct, holding all the lookup query parameters.
 pub struct LookupBuilder<'a> {
     name: &'a str,
