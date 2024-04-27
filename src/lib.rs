@@ -227,10 +227,7 @@ impl<'a> LookupBuilder<'a> {
                 CacheEntry::Found(icon) => {
                     return Some(icon);
                 }
-                CacheEntry::NotFound => {
-                    return None;
-                }
-                CacheEntry::Unknown => {}
+                _ => {}
             };
         }
 
