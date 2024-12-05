@@ -14,8 +14,7 @@ mod paths;
 
 type Result<T> = std::result::Result<T, ThemeError>;
 
-pub static THEMES: Lazy<BTreeMap<String, Vec<Theme>>> =
-    Lazy::new(|| get_all_themes().expect("Failed to get theme paths"));
+pub static THEMES: Lazy<BTreeMap<String, Vec<Theme>>> = Lazy::new(|| get_all_themes());
 
 pub struct Theme {
     pub path: ThemePath,
@@ -140,14 +139,21 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
 }
 
 // Iter through the base paths and get all theme directories
-pub(super) fn get_all_themes() -> Result<BTreeMap<String, Vec<Theme>>> {
+pub(super) fn get_all_themes() -> BTreeMap<String, Vec<Theme>> {
     let mut icon_themes = BTreeMap::<_, Vec<_>>::new();
     let mut found_indices = BTreeMap::new();
     let mut to_revisit = Vec::new();
 
     for theme_base_dir in BASE_PATHS.iter() {
-        for entry in theme_base_dir.read_dir()? {
-            let entry = entry?;
+        let dir_iter = match theme_base_dir.read_dir() {
+            Ok(dir) => dir,
+            Err(why) => {
+                tracing::error!(?why, dir = ?theme_base_dir, "unable to read icon theme directory");
+                continue;
+            }
+        };
+
+        for entry in dir_iter.filter_map(std::io::Result::ok) {
             let name = entry.file_name();
             let fallback_index = found_indices.get(&name);
             if let Some(theme) = Theme::from_path(entry.path(), fallback_index) {
@@ -171,7 +177,7 @@ pub(super) fn get_all_themes() -> Result<BTreeMap<String, Vec<Theme>>> {
         }
     }
 
-    Ok(icon_themes)
+    icon_themes
 }
 
 impl Theme {
