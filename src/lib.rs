@@ -55,6 +55,7 @@ use theme::BASE_PATHS;
 
 use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
+use std::io::BufRead;
 use std::path::PathBuf;
 
 mod cache;
@@ -74,15 +75,29 @@ mod theme;
 ///     "Papirus-Light", "Breeze", "Breeze Dark", "Breeze", "ePapirus", "ePapirus-Dark", "Hicolor"
 /// ])
 /// # }
-pub fn list_themes() -> Vec<&'static str> {
+pub fn list_themes() -> Vec<String> {
     let mut themes = THEMES
         .values()
         .flatten()
         .map(|path| &path.index)
         .filter_map(|index| {
-            index
-                .section(Some("Icon Theme"))
-                .and_then(|section| section.get("Name"))
+            let file = std::fs::File::open(index).ok()?;
+            let mut reader = std::io::BufReader::new(file);
+
+            let mut line = String::new();
+            while let Ok(read) = reader.read_line(&mut line) {
+                if read == 0 {
+                    break;
+                }
+
+                if let Some(name) = line.strip_prefix("Name=") {
+                    return Some(name.trim().to_owned());
+                }
+
+                line.clear();
+            }
+
+            None
         })
         .collect::<Vec<_>>();
     themes.dedup();
@@ -99,7 +114,7 @@ pub fn list_themes() -> Vec<&'static str> {
 ///
 /// assert_eq!(Some("Adwaita"), theme);
 /// ```
-pub fn default_theme_gtk() -> Option<&'static str> {
+pub fn default_theme_gtk() -> Option<String> {
     // Calling gsettings is the simplest way to retrieve the default icon theme without adding
     // GTK as a dependency. There seems to be several ways to set the default GTK theme
     // including a file in XDG_CONFIG_HOME as well as an env var. Gsettings is the most
@@ -115,9 +130,23 @@ pub fn default_theme_gtk() -> Option<&'static str> {
         let name = name.trim().trim_matches('\'');
         THEMES.get(name).and_then(|themes| {
             themes.first().and_then(|path| {
-                path.index
-                    .section(Some("Icon Theme"))
-                    .and_then(|section| section.get("Name"))
+                let file = std::fs::File::open(&path.index).ok()?;
+                let mut reader = std::io::BufReader::new(file);
+
+                let mut line = String::new();
+                while let Ok(read) = reader.read_line(&mut line) {
+                    if read == 0 {
+                        break;
+                    }
+
+                    if let Some(name) = line.strip_prefix("Name=") {
+                        return Some(name.trim().to_owned());
+                    }
+
+                    line.clear();
+                }
+
+                None
             })
         })
     } else {
@@ -261,7 +290,7 @@ impl<'a> LookupBuilder<'a> {
         if self.cache {
             if let CacheEntry::Found(icon) = self.cache_lookup(self.theme) {
                 return Some(icon);
-            };
+            }
         }
 
         // Then lookup in the given theme
@@ -278,11 +307,18 @@ impl<'a> LookupBuilder<'a> {
                         // Fallback to the parent themes recursively
                         let mut parents = icon_themes
                             .iter()
-                            .flat_map(|t| t.inherits())
+                            .flat_map(|t| {
+                                let file = theme::read_ini_theme(&t.index);
+
+                                t.inherits(file.as_ref())
+                                    .into_iter()
+                                    .map(String::from)
+                                    .collect::<Vec<String>>()
+                            })
                             .collect::<Vec<_>>();
                         parents.dedup();
                         parents.into_iter().find_map(|parent| {
-                            THEMES.get(parent).and_then(|parent| {
+                            THEMES.get(&parent).and_then(|parent| {
                                 parent.iter().find_map(|t| {
                                     t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
                                 })

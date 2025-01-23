@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use dirs::home_dir;
-use ini::Ini;
 use once_cell::sync::Lazy;
 use xdg::BaseDirectories;
 
@@ -13,7 +12,6 @@ pub(crate) static BASE_PATHS: Lazy<Vec<PathBuf>> = Lazy::new(icon_theme_base_pat
 /// Look in $HOME/.icons (for backwards compatibility), in $XDG_DATA_DIRS/icons, in $XDG_DATA_DIRS/pixmaps and in /usr/share/pixmaps (in that order).
 /// Paths that are not found are filtered out.
 fn icon_theme_base_paths() -> Vec<PathBuf> {
-    let home_icon_dir = home_dir().expect("No $HOME directory").join(".icons");
     let mut data_dirs: Vec<_> = BaseDirectories::new()
         .map(|bd| {
             let mut data_dirs: Vec<_> = bd
@@ -27,22 +25,25 @@ fn icon_theme_base_paths() -> Vec<PathBuf> {
             data_dirs
         })
         .unwrap_or_default();
-    data_dirs.push(home_icon_dir);
+    match home_dir().map(|home| home.join(".icons")) {
+        Some(home_icon_dir) => data_dirs.push(home_icon_dir),
+        None => tracing::warn!("No $HOME directory found"),
+    }
     data_dirs.into_iter().filter(|p| p.exists()).collect()
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ThemePath(pub PathBuf);
 
 impl ThemePath {
-    pub(super) fn index(&self) -> theme::Result<Ini> {
+    pub(super) fn index(&self) -> theme::Result<PathBuf> {
         let index = self.0.join("index.theme");
 
         if !index.exists() {
             return Err(ThemeError::ThemeIndexNotFound(index));
         }
 
-        Ok(Ini::load_from_file(index)?)
+        Ok(index)
     }
 }
 
@@ -50,7 +51,6 @@ impl ThemePath {
 mod test {
     use crate::theme::paths::icon_theme_base_paths;
     use crate::theme::{get_all_themes, Theme};
-    use anyhow::Result;
     use speculoos::prelude::*;
 
     #[test]
@@ -66,10 +66,9 @@ mod test {
     }
 
     #[test]
-    fn should_read_theme_index() -> Result<()> {
+    fn should_read_theme_index() {
         let themes = get_all_themes();
         let themes: Vec<&Theme> = themes.values().flatten().collect();
         assert_that!(themes).is_not_empty();
-        Ok(())
     }
 }

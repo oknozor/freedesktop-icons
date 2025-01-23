@@ -8,6 +8,4 @@ pub(crate) enum ThemeError {
     ThemeIndexNotFound(PathBuf),
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
-    #[error("IniError: {0}")]
-    IniError(#[from] ini::Error),
 }
