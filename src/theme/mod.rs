@@ -14,7 +14,7 @@ mod paths;
 
 type Result<T> = std::result::Result<T, ThemeError>;
 
-pub static THEMES: Lazy<BTreeMap<String, Vec<Theme>>> = Lazy::new(|| get_all_themes());
+pub static THEMES: Lazy<BTreeMap<String, Vec<Theme>>> = Lazy::new(get_all_themes);
 
 pub struct Theme {
     pub path: ThemePath,

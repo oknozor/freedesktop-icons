@@ -24,6 +24,10 @@ linicon = "2.3.0"
 gtk4 = "0.4.7"
 criterion = "0.3.5"
 
+[features]
+default = []
+local_tests = []
+
 [[bench]]
 name = "simple_lookup"
 harness = false

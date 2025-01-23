@@ -63,7 +63,7 @@ mod theme;
 /// Return the list of installed themes on the system
 ///
 /// ## Example
-/// ```rust
+/// ```rust,no_run
 /// # fn main() {
 /// use freedesktop_icons::list_themes;
 ///
@@ -92,7 +92,7 @@ pub fn list_themes() -> Vec<&'static str> {
 /// Return the default GTK theme if set.
 ///
 /// ## Example
-/// ```rust
+/// ```rust, no_run
 /// use freedesktop_icons::default_theme_gtk;
 ///
 /// let theme = default_theme_gtk();
@@ -259,11 +259,8 @@ impl<'a> LookupBuilder<'a> {
         // If the icon was previously search but not found, we return
         // `None` early, otherwise, attempt to perform a lookup
         if self.cache {
-            match self.cache_lookup(self.theme) {
-                CacheEntry::Found(icon) => {
-                    return Some(icon);
-                }
-                _ => {}
+            if let CacheEntry::Found(icon) = self.cache_lookup(self.theme) {
+                return Some(icon);
             };
         }
 
@@ -344,6 +341,7 @@ impl<'a> LookupBuilder<'a> {
 // WARNING: these test are highly dependent on your installed icon-themes.
 // If you want to run them, make sure you have 'Papirus' and 'Arc' icon-themes installed.
 #[cfg(test)]
+#[cfg(feature = "local_tests")]
 mod test {
     use crate::{lookup, CacheEntry, CACHE};
     use speculoos::prelude::*;
@@ -383,7 +381,7 @@ mod test {
             .that(&icon)
             .is_some()
             .is_equal_to(PathBuf::from(
-                "/usr/share/icons/Adwaita/scalable/devices/video-single-display-symbolic.svg",
+                "/usr/share/icons/Adwaita/symbolic/devices/video-single-display-symbolic.svg",
             ));
     }
 

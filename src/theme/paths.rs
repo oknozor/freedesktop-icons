@@ -55,7 +55,7 @@ mod test {
 
     #[test]
     fn should_get_all_themes() {
-        let themes = get_all_themes().unwrap();
+        let themes = get_all_themes();
         assert_that!(themes.get("hicolor")).is_some();
     }
 
@@ -67,7 +67,7 @@ mod test {
 
     #[test]
     fn should_read_theme_index() -> Result<()> {
-        let themes = get_all_themes()?;
+        let themes = get_all_themes();
         let themes: Vec<&Theme> = themes.values().flatten().collect();
         assert_that!(themes).is_not_empty();
         Ok(())
