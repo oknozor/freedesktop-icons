@@ -72,7 +72,7 @@ impl Theme {
             .filter_map(|directory| {
                 let distance = directory.directory_size_distance(size, scale);
                 if distance < i16::MAX {
-                    Some((directory, distance))
+                    Some((directory, distance.abs()))
                 } else {
                     None
                 }
