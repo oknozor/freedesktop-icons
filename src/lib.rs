@@ -68,7 +68,7 @@ mod theme;
 /// # fn main() {
 /// use freedesktop_icons::list_themes;
 ///
-/// let themes: Vec<&str> = list_themes();
+/// let themes: Vec<String> = list_themes();
 ///
 /// assert_eq!(themes, vec![
 ///     "Adwaita", "Arc", "Breeze Light", "HighContrast", "Papirus", "Papirus-Dark",
@@ -112,7 +112,7 @@ pub fn list_themes() -> Vec<String> {
 ///
 /// let theme = default_theme_gtk();
 ///
-/// assert_eq!(Some("Adwaita"), theme);
+/// assert_eq!(Some("Adwaita"), theme.as_deref());
 /// ```
 pub fn default_theme_gtk() -> Option<String> {
     // Calling gsettings is the simplest way to retrieve the default icon theme without adding
