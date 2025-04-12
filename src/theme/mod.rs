@@ -110,6 +110,8 @@ pub(super) fn try_build_icon_path<P: AsRef<Path>>(
 ) -> Option<PathBuf> {
     if force_svg {
         try_build_svg(name, path.as_ref())
+            .or_else(|| try_build_png(name, path.as_ref()))
+            .or_else(|| try_build_xmp(name, path.as_ref()))
     } else {
         try_build_png(name, path.as_ref())
             .or_else(|| try_build_svg(name, path.as_ref()))
