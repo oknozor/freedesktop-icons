@@ -242,7 +242,7 @@ mod test {
             t.try_get_icon_exact_size(file.as_str(), "blueman", 24, 1, true)
         });
         assert_that!(icon).is_some().is_equal_to(PathBuf::from(
-            "/usr/share/icons/hicolor/scalable/apps/blueman.svg",
+            "/usr/share/icons/hicolor/22x22/apps/blueman.png",
         ));
     }
 
