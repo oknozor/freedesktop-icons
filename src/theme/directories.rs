@@ -3,6 +3,7 @@ pub struct Directory<'a> {
     pub name: &'a str,
     pub size: i16,
     pub scale: i16,
+    pub context: Option<&'a str>,
     pub type_: DirectoryType,
     pub maxsize: i16,
     pub minsize: i16,
@@ -56,6 +57,15 @@ impl Directory<'_> {
                 }
             }
         }
+    }
+
+    pub fn match_context(&self, context: Option<&str>) -> bool {
+        // If either the directory's or lookup's context is not specified, ignore context matching
+        if context.is_none() || self.context.is_none() {
+            return true;
+        }
+        // If both contexts are specified, ensure they match
+        self.context == context
     }
 }
 

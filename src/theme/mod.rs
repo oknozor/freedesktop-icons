@@ -31,10 +31,13 @@ impl Theme {
         size: u16,
         scale: u16,
         force_svg: bool,
+        context: Option<&str>,
     ) -> Option<PathBuf> {
         let file = read_ini_theme(&self.index);
-        self.try_get_icon_exact_size(file.as_str(), name, size, scale, force_svg)
-            .or_else(|| self.try_get_icon_closest_size(file.as_str(), name, size, scale, force_svg))
+        self.try_get_icon_exact_size(file.as_str(), name, size, scale, force_svg, context)
+            .or_else(|| {
+                self.try_get_icon_closest_size(file.as_str(), name, size, scale, force_svg, context)
+            })
     }
 
     fn try_get_icon_exact_size(
@@ -44,8 +47,9 @@ impl Theme {
         size: u16,
         scale: u16,
         force_svg: bool,
+        context: Option<&str>,
     ) -> Option<PathBuf> {
-        self.match_size(file, size, scale)
+        self.match_size(file, size, scale, context)
             .find_map(|path| try_build_icon_path(name, path, force_svg))
     }
 
@@ -54,12 +58,15 @@ impl Theme {
         file: &'a str,
         size: u16,
         scale: u16,
+        context: Option<&'a str>,
     ) -> impl Iterator<Item = PathBuf> + 'a {
         let dirs = self.get_all_directories(file);
 
-        dirs.filter(move |directory| directory.match_size(size, scale))
-            .map(|dir| dir.name)
-            .map(|dir| self.path().join(dir))
+        dirs.filter(move |directory| {
+            directory.match_size(size, scale) && directory.match_context(context)
+        })
+        .map(|dir| dir.name)
+        .map(|dir| self.path().join(dir))
     }
 
     fn try_get_icon_closest_size(
@@ -69,17 +76,28 @@ impl Theme {
         size: u16,
         scale: u16,
         force_svg: bool,
+        context: Option<&str>,
     ) -> Option<PathBuf> {
-        self.closest_match_size(file, size, scale)
+        self.closest_match_size(file, size, scale, context)
             .iter()
             .find_map(|path| try_build_icon_path(name, path, force_svg))
     }
 
-    fn closest_match_size(&self, file: &str, size: u16, scale: u16) -> Vec<PathBuf> {
+    fn closest_match_size(
+        &self,
+        file: &str,
+        size: u16,
+        scale: u16,
+        context: Option<&str>,
+    ) -> Vec<PathBuf> {
         let dirs = self.get_all_directories(file);
 
         let mut dirs: Vec<_> = dirs
             .filter_map(|directory| {
+                if !directory.match_context(context) {
+                    return None;
+                }
+
                 let distance = directory.directory_size_distance(size, scale);
                 if distance < i16::MAX {
                     Some((directory, distance.abs()))
@@ -229,7 +247,7 @@ mod test {
             "{:?}",
             themes.iter().find_map(|t| {
                 let file = crate::theme::read_ini_theme(&t.index);
-                t.try_get_icon_exact_size(file.as_str(), "edit-delete-symbolic", 24, 1, false)
+                t.try_get_icon_exact_size(file.as_str(), "edit-delete-symbolic", 24, 1, false, None)
             })
         );
     }
@@ -239,7 +257,7 @@ mod test {
         let themes = THEMES.get("hicolor").unwrap();
         let icon = themes.iter().find_map(|t| {
             let file = crate::theme::read_ini_theme(&t.index);
-            t.try_get_icon_exact_size(file.as_str(), "blueman", 24, 1, true)
+            t.try_get_icon_exact_size(file.as_str(), "blueman", 24, 1, true, None)
         });
         assert_that!(icon).is_some().is_equal_to(PathBuf::from(
             "/usr/share/icons/hicolor/22x22/apps/blueman.png",
@@ -251,7 +269,7 @@ mod test {
         let themes = THEMES.get("hicolor").unwrap();
         let icon = themes.iter().find_map(|t| {
             let file = crate::theme::read_ini_theme(&t.index);
-            t.try_get_icon_exact_size(file.as_str(), "blueman", 24, 1, false)
+            t.try_get_icon_exact_size(file.as_str(), "blueman", 24, 1, false, None)
         });
         assert_that!(icon).is_some().is_equal_to(PathBuf::from(
             "/usr/share/icons/hicolor/22x22/apps/blueman.png",

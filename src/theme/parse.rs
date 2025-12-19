@@ -47,7 +47,7 @@ impl Theme {
             let mut min_size = None;
             let mut threshold = None;
             let mut scale = None;
-            // let mut context = None;
+            let mut context = None;
             let mut dtype = DirectoryType::default();
 
             #[allow(clippy::while_let_on_iterator)]
@@ -61,7 +61,7 @@ impl Theme {
                         match key {
                             "Size" => size = str::parse(value).ok(),
                             "Scale" => scale = str::parse(value).ok(),
-                            // "Context" => context = Some(value),
+                            "Context" => context = Some(value),
                             "Type" => dtype = DirectoryType::from(value),
                             "MaxSize" => max_size = str::parse(value).ok(),
                             "MinSize" => min_size = str::parse(value).ok(),
@@ -91,7 +91,7 @@ impl Theme {
                             name,
                             size,
                             scale: scale.unwrap_or(1),
-                            // context,
+                            context,
                             type_: dtype,
                             maxsize: max_size.unwrap_or(size),
                             minsize: min_size.unwrap_or(size),

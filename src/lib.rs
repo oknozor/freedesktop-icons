@@ -162,6 +162,7 @@ pub struct LookupBuilder<'a> {
     scale: u16,
     size: u16,
     theme: &'a str,
+    context: Option<&'a str>,
 }
 
 /// Build an icon lookup for the given icon name.
@@ -225,6 +226,22 @@ impl<'a> LookupBuilder<'a> {
         self
     }
 
+    /// Restrict the lookup to the given conext.
+    ///
+    /// ## Example
+    /// ```rust
+    /// # fn main() {
+    /// use freedesktop_icons::lookup;
+    ///
+    /// let icon = lookup("firefox")
+    ///     .with_context("Applications")
+    ///     .find();
+    /// # }
+    pub fn with_context<'b: 'a>(mut self, context: &'b str) -> Self {
+        self.context = Some(context);
+        self
+    }
+
     /// Store the result of the lookup in cache, subsequent
     /// lookup will first try to get the cached icon.
     /// This can drastically increase lookup performances for application
@@ -279,6 +296,7 @@ impl<'a> LookupBuilder<'a> {
             scale: 1,
             size: 24,
             theme: "hicolor",
+            context: None,
         }
     }
 
@@ -301,7 +319,13 @@ impl<'a> LookupBuilder<'a> {
                 let icon = icon_themes
                     .iter()
                     .find_map(|theme| {
-                        theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                        theme.try_get_icon(
+                            self.name,
+                            self.size,
+                            self.scale,
+                            self.force_svg,
+                            self.context,
+                        )
                     })
                     .or_else(|| {
                         // Fallback to the parent themes recursively
@@ -320,7 +344,13 @@ impl<'a> LookupBuilder<'a> {
                         parents.into_iter().find_map(|parent| {
                             THEMES.get(&parent).and_then(|parent| {
                                 parent.iter().find_map(|t| {
-                                    t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                                    t.try_get_icon(
+                                        self.name,
+                                        self.size,
+                                        self.scale,
+                                        self.force_svg,
+                                        self.context,
+                                    )
                                 })
                             })
                         })
@@ -328,7 +358,13 @@ impl<'a> LookupBuilder<'a> {
                     .or_else(|| {
                         THEMES.get("hicolor").and_then(|icon_themes| {
                             icon_themes.iter().find_map(|theme| {
-                                theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
+                                theme.try_get_icon(
+                                    self.name,
+                                    self.size,
+                                    self.scale,
+                                    self.force_svg,
+                                    self.context,
+                                )
                             })
                         })
                     })
