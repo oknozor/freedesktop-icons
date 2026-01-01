@@ -151,13 +151,13 @@ fn try_build_xmp<P: AsRef<Path>>(name: &str, path: P) -> Option<PathBuf> {
     }
 }
 
-// Iter through the base paths and get all theme directories
-pub(super) fn get_all_themes() -> BTreeMap<String, Vec<Theme>> {
+// Iter through the base paths and get all theme directories, with an additional list of directories to search
+pub(super) fn get_all_themes(extra_search_path: Vec<PathBuf>) -> BTreeMap<String, Vec<Theme>> {
     let mut icon_themes = BTreeMap::<_, Vec<_>>::new();
     let mut found_indices = BTreeMap::new();
     let mut to_revisit = Vec::new();
 
-    for theme_base_dir in BASE_PATHS.iter() {
+    for theme_base_dir in BASE_PATHS.iter().extend(extra_search_path.iter()) {
         let dir_iter = match theme_base_dir.read_dir() {
             Ok(dir) => dir,
             Err(why) => {
@@ -191,6 +191,11 @@ pub(super) fn get_all_themes() -> BTreeMap<String, Vec<Theme>> {
     }
 
     icon_themes
+}
+
+// Iter through the base paths and get all theme directories
+pub(super) fn get_all_themes() -> BTreeMap<String, Vec<Theme>> {
+    get_all_themes(Vec::new())
 }
 
 impl Theme {
