@@ -162,6 +162,7 @@ pub struct LookupBuilder<'a> {
     scale: u16,
     size: u16,
     theme: &'a str,
+    extra_search_path: Vec<PathBuf>,
 }
 
 /// Build an icon lookup for the given icon name.
@@ -245,6 +246,25 @@ impl<'a> LookupBuilder<'a> {
         self
     }
 
+    /// Add the provided paths to the list of directories to search
+    ///
+    /// ## Example
+    /// ```rust
+    /// # fn main() {
+    /// use freedesktop_icons::lookup;
+    /// use std::path;
+    ///
+    /// let icon = lookup("dropboxstatus-idle")
+    ///     .with_extra_search_path(Vec::from([PathBuf::from("/home/alice/.dropbox-dist/dropbox-lnx.x86_64-238.4.6305/icons")]))
+    ///     .find();
+    /// # }
+    pub fn with_extra_search_path(mut self, extra_search_path: Vec<PathBuf>) -> Self {
+        for path in extra_search_path {
+            self.extra_search_path.push(path);
+        }
+        self
+    }
+
     /// By default [`find`] will prioritize Png over Svg icon.
     /// Use this if you need to prioritize Svg icons. This could be useful
     /// if you need a modifiable icon, to match a user theme for instance.
@@ -279,6 +299,7 @@ impl<'a> LookupBuilder<'a> {
             scale: 1,
             size: 24,
             theme: "hicolor",
+            extra_search_path: Vec<PathBuf>::new(),
         }
     }
 
@@ -293,10 +314,12 @@ impl<'a> LookupBuilder<'a> {
             }
         }
 
+        let themes = if self.extra_search_path.is_empty() { THEMES } else { get_all_themes(self.extra_search_path) };
+
         // Then lookup in the given theme
-        THEMES
+        themes
             .get(self.theme)
-            .or_else(|| THEMES.get("hicolor"))
+            .or_else(|| themes.get("hicolor"))
             .and_then(|icon_themes| {
                 let icon = icon_themes
                     .iter()
@@ -318,7 +341,7 @@ impl<'a> LookupBuilder<'a> {
                             .collect::<Vec<_>>();
                         parents.dedup();
                         parents.into_iter().find_map(|parent| {
-                            THEMES.get(&parent).and_then(|parent| {
+                            themes.get(&parent).and_then(|parent| {
                                 parent.iter().find_map(|t| {
                                     t.try_get_icon(self.name, self.size, self.scale, self.force_svg)
                                 })
@@ -326,14 +349,14 @@ impl<'a> LookupBuilder<'a> {
                         })
                     })
                     .or_else(|| {
-                        THEMES.get("hicolor").and_then(|icon_themes| {
+                        themes.get("hicolor").and_then(|icon_themes| {
                             icon_themes.iter().find_map(|theme| {
                                 theme.try_get_icon(self.name, self.size, self.scale, self.force_svg)
                             })
                         })
                     })
                     .or_else(|| {
-                        for theme_base_dir in BASE_PATHS.iter() {
+                        for theme_base_dir in BASE_PATHS.iter().chain(self.extra_search_path.iter()) {
                             if let Some(icon) =
                                 try_build_icon_path(self.name, theme_base_dir, self.force_svg)
                             {
@@ -369,6 +392,9 @@ impl<'a> LookupBuilder<'a> {
 
     #[inline]
     fn store(&self, theme: &str, icon: Option<PathBuf>) -> Option<PathBuf> {
+        if !self.extra_search_path.is_empty() {
+            return;
+        }
         CACHE.insert(theme, self.size, self.scale, self.name, &icon);
         icon
     }
