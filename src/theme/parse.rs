@@ -24,7 +24,7 @@ enum DirectorySection<'a> {
     Section(&'a str),
 }
 
-fn sections(file: &str) -> impl Iterator<Item = DirectorySection> {
+fn sections(file: &str) -> impl Iterator<Item = DirectorySection<'_>> {
     ini_core::Parser::new(file).filter_map(move |item| match item {
         ini_core::Item::Property(key, Some(value)) => Some(DirectorySection::Property(key, value)),
         ini_core::Item::Section(section) => Some(DirectorySection::Section(section)),

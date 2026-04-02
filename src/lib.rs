@@ -173,7 +173,7 @@ pub struct LookupBuilder<'a> {
 ///
 /// let icon = lookup("firefox").find();
 /// # }
-pub fn lookup(name: &str) -> LookupBuilder {
+pub fn lookup(name: &str) -> LookupBuilder<'_> {
     LookupBuilder::new(name)
 }
 
