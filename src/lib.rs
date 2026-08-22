@@ -57,6 +57,7 @@ use crate::cache::{CacheEntry, CACHE};
 use crate::theme::{try_build_icon_path, THEMES};
 use std::io::BufRead;
 use std::path::PathBuf;
+use std::process::Command;
 
 mod cache;
 mod theme;
@@ -119,7 +120,7 @@ pub fn default_theme_gtk() -> Option<String> {
     // GTK as a dependency. There seems to be several ways to set the default GTK theme
     // including a file in XDG_CONFIG_HOME as well as an env var. Gsettings is the most
     // straightforward method.
-    let gsettings = std::process::Command::new("gsettings")
+    let gsettings = Command::new("gsettings")
         .args(["get", "org.gnome.desktop.interface", "icon-theme"])
         .output()
         .ok()?;
@@ -152,6 +153,38 @@ pub fn default_theme_gtk() -> Option<String> {
     } else {
         None
     }
+}
+
+/// Return the default KDE theme if set.
+///
+/// ## Example
+/// ```rust, no_run
+/// use freedesktop_icons::default_theme_kde;
+///
+/// let theme = default_theme_kde();
+///
+/// assert_eq!(Some("breeze"), theme.as_deref());
+/// ```
+pub fn default_theme_kde() -> Option<String> {
+    for cmd in ["kreadconfig6", "kreadconfig5"] {
+        let Ok(out) = Command::new(cmd)
+            .args(["--file", "kdeglobals", "--group", "Icons", "--key", "Theme"])
+            .output()
+        else {
+            continue;
+        };
+        if !out.status.success() {
+            break;
+        }
+        let theme = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+        if theme.is_empty() {
+            break;
+        } else {
+            return theme.into();
+        }
+    }
+
+    None
 }
 
 /// The lookup builder struct, holding all the lookup query parameters.
